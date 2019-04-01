@@ -1,5 +1,6 @@
 
 import os
+import shutil
 
 class MLEPLearningServer():
     def __init__(self,):
@@ -11,33 +12,32 @@ class MLEPLearningServer():
         # This is the clock for scheduled Filter Generation. During this scheduled generation, existing filters 
         # are also updated. Not yet sure how, but this is in progress
         self.scheduledFilterGenerateUpdateTimer = 0
-        
-        self.FIRST_TIMER = True
 
-        self.SERVERTIME      = 'handshake/servertime'
-        self.CREATETIME      = 'handshake/createtime'
-        self.RECEIVEDTIME    = 'handshake/receivedtime'
         # For Drift based, models track their own 'drift'
         # ------------------------------------------------------------------------------------
 
-    def updateOverallTimer(self):
-        updateFlag = False
-        while not updateFlag:
-            #Check if server has received the time
-            if not os.path.exists(self.CREATETIME):
-                pass
-            else:
-                os.remove(self.CREATETIME)
-                with open(self.SERVERTIME, 'r') as servertime:
-                    self.overallTime = int(servertime.read().strip())
-                open(self.RECEIVEDTIME, 'w').close()
-                updateFlag = True
+
+        # Set up storage directories
+        self.SOURCE_DIR = './.MLEPServer'
+        self.setups = ['models', 'data', 'modelSerials', 'db']
+
+        try:
+            shutil.rmtree(self.SOURCE_DIR)
+        except:
+            pass
+        os.makedirs(self.SOURCE_DIR)
+        for directory in self.setups:
+            os.makedirs()
+
+
+
     
-                if self.FIRST_TIMER:
-                    # First time going through this. we will need to update all timers.
-                    self.scheduledFilterGenerateUpdateTimer = self.overallTime
-                    self.FIRST_TIMER = False
-            
+    def updateTime(self,timerVal):
+        self.overallTimer = timerVal
+
+
+
+
 
     def execute(self):
 
@@ -63,6 +63,8 @@ class MLEPPredictionServer():
     def classify(self,data):
 '''
 
+'''
 if __name__ == "__main__":
     MLEP = MLEPLearningServer()
     MLEP.execute()
+'''

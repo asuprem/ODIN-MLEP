@@ -1,70 +1,45 @@
 
-import os, time
-
-global SERVERTIME     
-global CREATETIME 
-global RECEIVEDTIME
-global INTERNAL_TIMER
-global FIRST_TIMER
-SERVERTIME = 'handshake/servertime'
-CREATETIME = 'handshake/createtime'
-RECEIVEDTIME = 'handshake/receivedtime'
-
-INTERNAL_TIMER = 0
-FIRST_TIMER = True
-
-# Update the time. Wait if file not created. This is a blocking function
-def updateTimer():
-    global SERVERTIME     
-    global CREATETIME 
-    global RECEIVEDTIME
-    global INTERNAL_TIMER
-    global FIRST_TIMER
-    updateFlag = False
-    if FIRST_TIMER:
-        # First time going through this. we will not wait for ReceivedFile
-        with open(SERVERTIME, 'w') as servertime:
-            servertime.write(str(INTERNAL_TIMER))
-        open(CREATETIME, 'w').close()
-        FIRST_TIMER = False
-    else:
-        while not updateFlag:
-            #Check if server has received the time
-            if not os.path.exists(RECEIVEDTIME):
-                pass
-            else:
-                os.remove(RECEIVEDTIME)
-                with open(SERVERTIME, 'w') as servertime:
-                    servertime.write(str(INTERNAL_TIMER))
-                open(CREATETIME, 'w').close()
-                updateFlag = True
-
-
-def main():
-    global SERVERTIME     
-    global CREATETIME 
-    global RECEIVEDTIME
-    global INTERNAL_TIMER
-    global FIRST_TIMER
-
-    # Delete all files
-    if os.path.exists(SERVERTIME):
-        os.remove(SERVERTIME)
-    if os.path.exists(CREATETIME):
-        os.remove(CREATETIME)
-    if os.path.exists(RECEIVEDTIME):
-        os.remove(RECEIVEDTIME)
-
-    while True:
-        if INTERNAL_TIMER % 5000 == 0:
-            print "Internal Timer: ", INTERNAL_TIMER
-        updateTimer()
-        #time.sleep(5)
-        INTERNAL_TIMER += 1
-        
+import os, time, json
+from MLEPServer import *
 
 
 
 
 if __name__ == "__main__":
-    main()
+    internalTimer = 0
+
+    # TODO --> sortDataTimes()
+    # 
+    data = []
+    with open('data/data/apriori_to_december_sorted_positive.json','r') as data_file:
+        for line in data_file:
+            data.append[json.loads(line.strip())]
+    
+    negatives = []
+    with open('data/data/apriori_to_december_negatives.json','r') as data_file:
+        for line in data_file:
+            negatives.append[json.loads(line.strip())]
+    
+    trainingData = []
+    with open('data/data/aibek_test_converted.json','r') as data_file:
+        for line in data_file:
+            trainingData.append[json.loads(line.strip())]
+    
+    # Now we have the data
+
+
+    MLEPLearner = MLEPLearningServer()
+    MLEPPredictor = MLEPPredictionServer()
+
+    MLEPLearner.train(data=trainingData, models='all')
+    MLEPLearner.addNegatives(negatives)
+
+    # let's do something with it
+    for item in data:
+        if internalTimer < item['timestamp']:
+            internalTimer = long(item['timestamp'])
+
+            # This is the execute loop, but for this implementation. Ideally execute loop is self-sufficient. 
+            # But for testing, we ened to manually trigger it
+            MLEPLearner.updateTime(internalTimer)
+        #MLEPPredictor.classify(item['text'])
