@@ -1,4 +1,20 @@
 {
-    "models":
+    "models": {
+        "sgd" :{
+            "name": "sgd",
+            "desc": "Sklearn version of SVM, but batched - faster",
+            "scriptName": "sklearnSGD"
+        }
+    },
+
+
+
+    "encoders": {
+        "w2v-main":{
+            "name": "w2v-main",
+            "desc": "The Pretrained W2v Encoder. Needs access to the w2v model file (google something.bin)",
+            "scriptName": "w2vGoogleNews"
+        }
+    }
         
 }

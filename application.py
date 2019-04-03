@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     # Train with raw training data (for now)
     # Assumptions - there is a 'text' field; assume we have access to a w2v encoder
-    #MLEPLearner.train(data=trainingData, models='all')
+    MLEPLearner.train(traindata=trainingData)
     #MLEPLearner.addNegatives(negatives)
 
     # let's do something with it

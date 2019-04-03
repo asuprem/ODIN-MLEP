@@ -15,3 +15,7 @@ class DataEncoder():
         encodedData = data
         return encodedData
 
+
+    def batchEncode(self, data):
+        """ Batch encode data into some format """
+        pass
