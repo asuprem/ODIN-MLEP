@@ -63,7 +63,7 @@ class MLEPLearningServer():
         # Initialize Model table
         
         self.DB_CONN.execute("""CREATE TABLE IF NOT EXISTS Models
-                                (   modelid         int autoincrement,
+                                (   modelid         integer primary key autoincrement,
                                     name            text, 
                                     timestamp       real,
                                     data_centroid   text,
@@ -137,6 +137,7 @@ class MLEPPredictionServer():
         
         self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
         self.CLASSIFY_MODE = 'knn'
+        self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
 
     def setMode(self,mode):
         if mode == 'knn' or mode == 'recent':
@@ -146,8 +147,11 @@ class MLEPPredictionServer():
 
     def classify(self,data):
         # sve data item to scheduledDataFile
-        with open(self.SCHEDULED_DATA_FILE, 'a') as append_file:
-            append_file.write(json.dumps(data)+'\n')
+        try:
+            self.SCHEDULED_DATA_FILE_OPERATOR.write(json.dumps(data)+'\n')
+        except:
+            self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
+            self.SCHEDULED_DATA_FILE_OPERATOR.write(json.dumps(data)+'\n')
 
         if self.CLASSIFY_MODE == 'recent':
             # get more recent created models by timestamp
