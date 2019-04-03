@@ -1,6 +1,9 @@
 
-import os
+import os, json
+import sqlite3
+from sqlite3 import Error
 import shutil
+from utils import *
 
 class MLEPLearningServer():
     def __init__(self,):
@@ -12,7 +15,9 @@ class MLEPLearningServer():
         # This is the clock for scheduled Filter Generation. During this scheduled generation, existing filters 
         # are also updated. Not yet sure how, but this is in progress
         self.scheduledFilterGenerateUpdateTimer = 0
-
+        self.DAY_IN_MS = 86400000
+        self.scheduledSchedule =  self.DAY_IN_MS * 30
+        
         # For Drift based, models track their own 'drift'
         # ------------------------------------------------------------------------------------
 
@@ -20,6 +25,10 @@ class MLEPLearningServer():
         # Set up storage directories
         self.SOURCE_DIR = './.MLEPServer'
         self.setups = ['models', 'data', 'modelSerials', 'db']
+        self.DB_FILE = './.MLEPServer/db/MLEP.db'
+        self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
+        # create scheduled file
+        open(self.SCHEDULED_DATA_FILE, 'w').close()
 
         try:
             shutil.rmtree(self.SOURCE_DIR)
@@ -27,41 +36,128 @@ class MLEPLearningServer():
             pass
         os.makedirs(self.SOURCE_DIR)
         for directory in self.setups:
-            os.makedirs()
+            os.makedirs(os.path.join(self.SOURCE_DIR, directory))
+        
+        self.DB_CONN = self.create_connection()
+
+        self.initializeDB()
+        
+    def create_connection(self,):
+        """ create a database connection to a SQLite database """
+        try:
+            conn = sqlite3.connect(self.DB_FILE)
+            #print(sqlite3.version)
+        except Error as e:
+            print(e)
+        return conn
 
 
-
+    def close_connection(self,):
+        try:
+            self.DB_CONN.close()
+        except:
+            pass
+    
+    def initializeDB(self):
+        
+        # Initialize Model table
+        
+        self.DB_CONN.execute("""CREATE TABLE IF NOT EXISTS Models
+                                (   modelid         int autoincrement,
+                                    name            text, 
+                                    timestamp       real,
+                                    data_centroid   text,
+                                    data            text,
+                                    trainingModel   text,
+                                    trainingData    text,
+                                    testData        text,
+                                    precision       real,
+                                    recall          real,
+                                    fscore          real,
+                                    type            text )""")
     
     def updateTime(self,timerVal):
         self.overallTimer = timerVal
 
+        if abs(self.overallTimer - self.scheduledFilterGenerateUpdateTimer) > self.scheduledSchedule:
+            if not os.path.exists(self.SCHEDULED_DATA_FILE):
+                # Something is the issue
+                std_flush("No data for update")
+                self.scheduledFilterGenerateUpdateTimer = self.overallTimer
+            else:    
+                # perform scheduled update
+                
+                # show lines in file
+                num_lines = sum(1 for line in open(self.SCHEDULED_DATA_FILE))
+
+                std_flush("Scheduled update at", ms_to_readable(self.overallTimer), "with", num_lines,"data samples." )
+                self.scheduledFilterGenerateUpdateTimer = self.overallTimer
+                
+                # delete file
+                '''
+                try:
+                    os.remove(self.SCHEDULED_DATA_FILE)
+                except:
+                    pass
+                '''
+                open(self.SCHEDULED_DATA_FILE, 'w').close()
+
+
+    def generate(self,encoder, data, model):
+
+        pass
+        return precision, recall, score, model
+
+    def train(self,traindata):
+        # for each modelType in modelTypes
+        #   for each encodingType (just 1)
+        #       Create sklearn model using default details
+        #       then train sklearn model using encoded data
+        #       precision, recall, score, model = self.generate(encoder, traindata, model)
+        #       push details to ModelDB
+        #       save model to file using ID as filename.model -- serialized sklearn model
+
+        pass
+
+    '''
+    def addNegatives(self,negatives):
+    '''
 
 
 
 
-    def execute(self):
-
-        while True:
-            # Manually update the timer with info from application tester
-            # We will do this by a handshaking protocol. So main application will create a SERVERTIME and write to it the server time. Then it will
-            #       create the CREATETIME file
-            # When server detects the CREATETIME file, it will read the SERVERTIME file and read the time. Then it will delete the CREATETIME file.
-            #       Then it will create the RECEIVEDTIME file
-            # application server detects RECEIVEDTIME file, updates SEVERTIME file, deletes RECEIVEDTIME file, and then creates CREATETIME file
-            self.updateOverallTimer()
-
-            #self.DoRestOfTheThings()
-            if self.overallTime % 5000 == 0:
-                print self.overallTime
 
 
-'''
 class MLEPPredictionServer():
     def __init__(self,):
         # Initialize Prediction Server
+        # Set up storage directories
+        self.SOURCE_DIR = './.MLEPServer'
+        self.setups = ['models', 'data', 'modelSerials', 'db']
+        
+        self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
+        self.CLASSIFY_MODE = 'knn'
+
+    def setMode(self,mode):
+        if mode == 'knn' or mode == 'recent':
+            self.CLASSIFY_MODE = mode
+        else:
+            self.CLASSIFY_MODE = 'recent'
 
     def classify(self,data):
-'''
+        # sve data item to scheduledDataFile
+        with open(self.SCHEDULED_DATA_FILE, 'a') as append_file:
+            append_file.write(json.dumps(data)+'\n')
+
+        if self.CLASSIFY_MODE == 'recent':
+            # get more recent created models by timestamp
+            pass
+
+
+        
+
+
+
 
 '''
 if __name__ == "__main__":

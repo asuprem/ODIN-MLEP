@@ -57,5 +57,11 @@ MLEP operates on continuous data, and therefore performs **continuous learning**
 
     setUpEndPoints()
 
+# Requirements
+
+sqlite3
+spatialite
+
+
 
     
