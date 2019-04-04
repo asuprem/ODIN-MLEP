@@ -72,6 +72,9 @@ class MLEPLearningServer():
         # This would normally be a set of hosted encoders. For local implementation, we have the encoders as a dict of encoder objects (TODO)
         std_flush("Setting up built-in encoders", readable_time())
         self.ENCODERS = {}
+        self.setUpEncoders()
+
+        # Setting of 'hosted' models + data cetroids
         self.MODELS = {}
         self.CENTROIDS={}
 
@@ -90,11 +93,6 @@ class MLEPLearningServer():
         # Just the initial models
         self.TRAIN_MODELS = []
 
-
-
-
-
-        self.setUpEncoders()
 
 
     def setUpEncoders(self):
@@ -129,7 +127,7 @@ class MLEPLearningServer():
         # Access the save path
         # pick.dump models to that path
         pass
-        
+
         
         self.closeDBConnection()
 
