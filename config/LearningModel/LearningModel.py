@@ -16,14 +16,35 @@ class LearningModel:
         X -- [array of shape (n_samples, n_features)] Training data.
         y -- [array of shape (n_samples)] Target values for the training data.
         """
-        pdb.set_trace()
         self._model.fit(X, y)
+
+    def fit_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None):
+        """Fit the statistical learning model to the training data and test
+        X -- [array of shape (n_samples, n_features)] Training data.
+        y -- [array of shape (n_samples)] Target values for the training data.
+        X_test -- [array of shape (n_samples, n_features)] Testing data.
+        y_test -- [array of shape (n_samples)] Target values for the Testing data.
+
+        If X_test and y_test are not provided, split value is used (default 0.7) to shuffle and split X_train and y_train
+        """
+        # TODO handle weird erros, such as X_test specified, but y_test not specified, etc
+        if X_test is None and y_test is None:
+            from sklearn.model_selection import train_test_split
+            X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
+    
+        self._model.fit(X_train, y_train)
+        precision, recall, score = self.precision_recall_fscore(X_test, y_test)
+        return precision, recall, score
 
     def predict(self, X):
         """Return predicted labels for the test data.
         X -- [array of shape (n_samples, n_features)] Test data.
         """
-        return self._model.predict(X)
+        
+        try:
+            return self._model.predict(X)
+        except:
+            return self._model.predict(X.reshape(1,-1))
 
     def precision_recall_fscore(self, X, y):
         """Return a 3-tuple where the first element is the precision of the model, the second is the
@@ -34,5 +55,7 @@ class LearningModel:
         X -- [array] Test data.
         y -- [array] Target values for the test data.
         """
+        from sklearn.metrics import precision_recall_fscore_support
         y_pred = self.predict(X)
-        return tuple(precision_recall_fscore_support(y, y_pred, average="weighted")[0:3])
+        prs_ = tuple(precision_recall_fscore_support(y, y_pred, average="weighted")[0:3])
+        return prs_[0], prs_[1], prs_[2]

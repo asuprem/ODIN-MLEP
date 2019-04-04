@@ -8,4 +8,4 @@ class sklearnLogReg(LearningModel):
     def __init__(self):
         """Initialize a logistic regression learning model wrapper."""
         from sklearn.linear_model import LogisticRegression
-        super(sklearnLogReg,self).__init__(LogisticRegression(solver="lbfgs", max_iter=100000), self)
+        super(sklearnLogReg,self).__init__(LogisticRegression(solver="lbfgs", max_iter=100000))

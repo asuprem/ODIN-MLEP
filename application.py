@@ -33,9 +33,12 @@ if __name__ == "__main__":
     # Train with raw training data (for now)
     # Assumptions - there is a 'text' field; assume we have access to a w2v encoder
     MLEPLearner.train(traindata=trainingData)
-    #MLEPLearner.addNegatives(negatives)
+    std_flush("Completed training at", readable_time())
+    MLEPLearner.addNegatives(negatives)
 
     # let's do something with it
+    totalCounter = []
+    mistakes = []
     for item in data:
         if internalTimer < item['timestamp']:
             internalTimer = long(item['timestamp'])
@@ -43,4 +46,12 @@ if __name__ == "__main__":
             # This is the execute loop, but for this implementation. Ideally execute loop is self-sufficient. 
             # But for testing, we ened to manually trigger it
             MLEPLearner.updateTime(internalTimer)
-        MLEPPredictor.classify(item)
+        classification = MLEPPredictor.classify(item, MLEPLearner)
+        totalCounter.append(1)
+        if classification != item['label']:
+            mistakes.append(1.0)
+        else:
+            mistakes.append(0.0)
+        if len(totalCounter) % 100 == 0 and len(totalCounter)>0:
+            std_flush("Completed", len(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/sum(totalCounter[-100:]))
+        

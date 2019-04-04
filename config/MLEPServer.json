@@ -1,9 +1,19 @@
 {
+    "config":{
+        "update_schedule":2592000000,
+        "weight_method":"unweighted"
+    },
+
     "models": {
         "sgd" :{
             "name": "sgd",
             "desc": "Sklearn version of SVM, but batched - faster",
             "scriptName": "sklearnSGD"
+        },
+        "logreg" :{
+            "name": "logreg",
+            "desc": "Sklearn version of Logreg",
+            "scriptName": "sklearnLogReg"
         }
     },
 
@@ -21,7 +31,14 @@
     "pipelines": {
         "pipelineA":{
             "name": "pipelineA",
-            "sequence": ["w2v-main", "sgd"]
+            "sequence": ["w2v-main", "sgd"],
+            "type":"binary"
+        },
+
+        "pipelineB":{
+            "name": "pipelineB",
+            "sequence": ["w2v-main", "logreg"],
+            "type":"binary"
         }
 
         
