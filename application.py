@@ -10,17 +10,17 @@ if __name__ == "__main__":
     # TODO --> sortDataTimes()
     # 
     data = []
-    with open('data/data/apriori_to_december_sorted_positive.json','r') as data_file:
+    with open('data/data/2014_to_dec2018.json','r') as data_file:
         for line in data_file:
             data.append(json.loads(line.strip()))
     
     negatives = []
-    with open('data/data/apriori_to_december_negatives.json','r') as data_file:
+    with open('data/data/collectedIrrelevant.json','r') as data_file:
         for line in data_file:
             negatives.append(json.loads(line.strip()))
     
     trainingData = []
-    with open('data/data/aibek_test_converted.json','r') as data_file:
+    with open('data/data/initialTrainingData.json','r') as data_file:
         for line in data_file:
             trainingData.append(json.loads(line.strip()))
     

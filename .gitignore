@@ -1,4 +1,7 @@
-data/*
+data/archive/*
+data/*.json
+data/online/
+data/gooddata/
 apikey
 .MLEPServer/
 handshake/
