@@ -55,3 +55,5 @@ if __name__ == "__main__":
         if len(totalCounter) % 100 == 0 and len(totalCounter)>0:
             std_flush("Completed", len(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/sum(totalCounter[-100:]))
         
+
+    MLEPLearner.shutdown()

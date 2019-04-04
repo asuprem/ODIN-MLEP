@@ -118,11 +118,22 @@ class MLEPLearningServer():
     def openDBConnection(self,):
         """ create a database connection to a SQLite database """
         try:
-            self.DB_CONN = sqlite3.connect("file::memory:?cache=shared", detect_types=sqlite3.PARSE_DECLTYPES)
+            #self.DB_CONN = sqlite3.connect("file::memory:?cache=shared", detect_types=sqlite3.PARSE_DECLTYPES)
+            self.DB_CONN = sqlite3.connect(self.DB_FILE, detect_types=sqlite3.PARSE_DECLTYPES)
             #print(sqlite3.version)
         except Error as e:
             print(e)
 
+    def shutdown(self):
+        # save models - because they are all heald in memory??
+        # Access the save path
+        # pick.dump models to that path
+        pass
+        
+        
+        self.closeDBConnection()
+
+        
 
     def closeDBConnection(self,):
         try:
@@ -634,31 +645,3 @@ class MLEPPredictionServer():
         return MLEPLearner.classify(data)
             
 
-
-        
-
-
-
-
-'''
-if __name__ == "__main__":
-    MLEP = MLEPLearningServer()
-    MLEP.execute()
-'''
-
-
-
-"""
-sql_data = {    "name": currentPipeline["name"],
-                            "timestamp": time.time(),
-                            "data_centroid": data_centroid,
-                            "trainingModel": modelSavePath,
-                            "trainingData": trainDataSavePath,
-                            "testData": testDataSavePath,
-                            "precision": precision,
-                            "recall": recall,
-                            "fscore": score,
-                            "type": currentPipeline["type"],
-                            "active": 1
-                            }
-"""
