@@ -1,5 +1,12 @@
 # MLEP ( In progress)
 
+# Execution
+Use requirements.txt to create virtual environment
+
+    $ (venv) python application.py
+
+# Details
+
 MLEP is an ML-Based Event Processing System. It is based on the system described in the ASSED paper (to be linked later).
 
 MLEP performs filter generation, filter updates, and classification. General MLEP outline is provided below:
