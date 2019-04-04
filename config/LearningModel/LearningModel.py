@@ -5,11 +5,15 @@ __metaclass__ = type
 class LearningModel:
     """Abstract learning model."""
 
-    def __init__(self, model):
+    def __init__(self, model, mode="binary",classes=[0,1]):
         """Initialize a learning model.
         model -- [object] Learning model.
+        mode  -- [str] Mode of learning (binary, multiclass, or regression)
+        model -- [int] Number of classes. None for regression
         """
         self._model = model
+        self.mode = mode
+        self.classes = classes
 
     def fit(self, X, y):
         """Fit the statistical learning model to the training data.
@@ -23,7 +27,7 @@ class LearningModel:
         X -- [array of shape (n_samples, n_features)] Training data.
         y -- [array of shape (n_samples)] Target values for the training data.
         """
-        self._model.partial_fit(X, y)
+        self._model.partial_fit(X, y, classes=self.classes)
 
     def update_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None):
         """Update the statistical learning model to the training data and test
@@ -39,7 +43,7 @@ class LearningModel:
             from sklearn.model_selection import train_test_split
             X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
     
-        self._model.partial_fit(X_train, y_train)
+        self.update(X_train, y_train)
         precision, recall, score = self.precision_recall_fscore(X_test, y_test)
         return precision, recall, score
 
@@ -57,7 +61,7 @@ class LearningModel:
             from sklearn.model_selection import train_test_split
             X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
     
-        self._model.fit(X_train, y_train)
+        self.fit(X_train, y_train)
         precision, recall, score = self.precision_recall_fscore(X_test, y_test)
         return precision, recall, score
 

@@ -21,8 +21,8 @@ def time_to_id(ms=None):
     DICTA={str(idx):item for idx,item in enumerate("abcdefghij")}
     if ms is None:
         ms = time.time()
-    ms_str = "%.2f"%time.time()
-    ms_str = ms_str[:-3]+ms_str[-2:]
+    ms_str = "%.5f"%time.time()
+    ms_str = ms_str[:-6]+ms_str[-5:]
     return ''.join([DICTA[item] for item in ms_str])
 
 

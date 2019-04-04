@@ -1,7 +1,9 @@
 {
     "config":{
         "update_schedule":2592000000,
-        "weight_method":"unweighted"
+        "weight_method":"unweighted",
+        "select_method":"recent-new",
+        "other_select_methods":"recent-update, nearest, recent"
     },
 
     "models": {

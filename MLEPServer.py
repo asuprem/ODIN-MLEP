@@ -25,7 +25,8 @@ class MLEPLearningServer():
 
         """ This is the internal clock of the Server. Normally, this is time.time(). For this implementation, this is updated manually """
         self.overallTimer = None
-
+        # Since model's are pushed by live time (instead of data time), we have a model timer as well
+        self.MLEPModelTimer = time.time()
         """ This is the clock for scheduled Filter Generation. During this scheduled generation, existing filters are also updated. Not yet sure how, but this is in progress """
         self.scheduledFilterGenerateUpdateTimer = 0
         self.scheduledSchedule = 0
@@ -74,8 +75,22 @@ class MLEPLearningServer():
         self.MODELS = {}
         self.CENTROIDS={}
 
-        # These are models generated in the prior update
+        # These are models generated and updated in the prior update
         self.RECENT_MODELS=[]
+        # Only generated models in prior update
+        self.RECENT_NEW = []
+        # Only update models in prior update
+        self.RECENT_UPDATES = []
+        # All models
+        self.HISTORICAL = []
+        # All generated models
+        self.HISTORICAL_NEW = []
+        # All update models
+        self.HISTORICAL_UPDATES = []
+
+
+
+
 
         self.setUpEncoders()
 
@@ -132,8 +147,8 @@ class MLEPLearningServer():
                                     fscore          real,
                                     type            text,
                                     active          integer,
-                                    PRIMARY KEY(modelid)),
-                                    FOREIGN KEY(parentmodel) REFERENCES Models(trainingModel)""")
+                                    PRIMARY KEY(modelid),
+                                    FOREIGN KEY(parentmodel) REFERENCES Models(trainingModel))""")
         self.DB_CONN.commit()
         cursor.close()
     
@@ -155,6 +170,7 @@ class MLEPLearningServer():
                 num_lines = sum(1 for line in open(self.SCHEDULED_DATA_FILE))
                 if num_lines == 0:
                     std_flush("Attempted update at", ms_to_readable(self.overallTimer), ", but ", num_lines,"data samples." )
+                    
                 else:  
                     std_flush("Scheduled update at", ms_to_readable(self.overallTimer), "with", num_lines,"data samples." )
                     
@@ -176,6 +192,33 @@ class MLEPLearningServer():
                     std_flush("Completed Scheduled Model Update at", readable_time())
 
                     std_flush("Generated the following models: ", self.RECENT_MODELS)
+
+                # These are models generated and updated in the prior update
+                #self.RECENT_MODELS=[] <-- This is set up internal
+                # Only generated models in prior update
+                self.RECENT_NEW = self.getNewModelsSince(self.MLEPModelTimer)
+                # Only update models in prior update
+                self.RECENT_UPDATES = self.getUpdateModelsSince(self.MLEPModelTimer)
+                # All models
+                self.HISTORICAL = self.getModelsSince()
+                # All generated models
+                self.HISTORICAL_NEW = self.getNewModelsSince()
+                # All update models
+                self.HISTORICAL_UPDATES = self.getUpdateModelsSince()
+
+                if len(self.RECENT_UPDATES) == 0:
+                    # No update models found. Fall back on Recent New
+                    self.RECENT_UPDATES = [item for item in self.RECENT_NEW]
+                if len(self.HISTORICAL_UPDATES) == 0:
+                    # No update models found. Fall back on Historical New
+                    self.HISTORICAL_UPDATES = [item for item in self.HISTORICAL_NEW]
+                
+                # Update Model Timer
+                self.MLEPModelTimer = time.time()
+
+                std_flush("New Models: ", self.RECENT_NEW)
+                std_flush("Update Models: ", self.RECENT_UPDATES)
+
                 
                 self.scheduledFilterGenerateUpdateTimer = self.overallTimer
                 
@@ -286,9 +329,9 @@ class MLEPLearningServer():
 
         modelSaveNames = [modelSaveName for modelSaveName in self.MODELS]
         modelDetails = self.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
-
+        self.RECENT_UPDATES = []
         pipelineNameDict = self.getDetails(modelDetails, 'pipelineName', 'dict')
-
+        recentModels=[]
         for modelSaveName in modelSaveNames:
             # copy model
             # set up new model
@@ -339,6 +382,7 @@ class MLEPLearningServer():
             recentModels.append(modelSavePath)
 
         self.RECENT_MODELS += recentModels
+        self.RECENT_UPDATES = recentModels
 
 
 
@@ -423,9 +467,55 @@ class MLEPLearningServer():
     def addNegatives(self,negatives):
         self.negatives = negatives
 
-    def getModelDetails(self,ensembleModelNames):
+
+
+    def getModelsSince(self, _time = None):
         cursor = self.DB_CONN.cursor()
-        toGet = ["trainingModel","fscore","pipelineName"]
+        if _time is None:
+            # We are getting ALL models
+            sql = "select trainingModel from Models"
+        else:
+            # We are getting models since a time
+            sql = "select trainingModel from Models where timestamp > %s" % _time
+        
+        cursor.execute(sql)
+        tupleResults = cursor.fetchall()
+        cursor.close()
+        return [item[0] for item in tupleResults]
+
+    def getNewModelsSince(self, _time = None):
+        cursor = self.DB_CONN.cursor()
+        if _time is None:
+            # We are getting ALL models
+            sql = "select trainingModel from Models where parentmodel IS NULL"
+        else:
+            # We are getting models since a time
+            sql = "select trainingModel from Models where timestamp > %s and parentmodel IS NULL" % _time
+        
+        cursor.execute(sql)
+        tupleResults = cursor.fetchall()
+        cursor.close()
+        return [item[0] for item in tupleResults]
+        
+        
+    def getUpdateModelsSince(self, _time = None):
+        cursor = self.DB_CONN.cursor()
+        if _time is None:
+            # We are getting ALL models
+            sql = "select trainingModel from Models where parentmodel IS NOT NULL"
+        else:
+            # We are getting models since a time
+            sql = "select trainingModel from Models where timestamp > %s and parentmodel IS NOT NULL" % _time
+        
+        cursor.execute(sql)
+        tupleResults = cursor.fetchall()
+        cursor.close()
+        return [item[0] for item in tupleResults]
+
+    def getModelDetails(self,ensembleModelNames, toGet = None):
+        cursor = self.DB_CONN.cursor()
+        if toGet is None:
+            toGet = ["trainingModel","fscore","pipelineName"]
         sql = "select " + ",".join(toGet) + " from Models where trainingModel in ({seq})".format(seq=",".join(["?"]*len(ensembleModelNames)))
         cursor.execute(sql,ensembleModelNames)
         tupleResults = cursor.fetchall()
@@ -448,11 +538,17 @@ class MLEPLearningServer():
             details = {item:dataDict[item][keyVal] for item in dataDict}
             return details
 
-    def classify(self, data, mode="recent"):
+    def classify(self, data, mode="recent-new"):
         if mode == "recent":
             # Step one - get list of model ids
             ensembleModelNames = [item for item in self.RECENT_MODELS]
-        
+        elif mode == "recent-new":
+            ensembleModelNames = [item for item in self.RECENT_NEW]
+        elif mode == "recent-updates":
+            ensembleModelNames = [item for item in self.RECENT_UPDATES]
+        else:
+            #recent-new
+            ensembleModelNames = [item for item in self.RECENT_NEW]
 
         # Run the sqlite query to get model details
         modelDetails = self.getModelDetails(ensembleModelNames)
@@ -511,14 +607,14 @@ class MLEPPredictionServer():
         self.setups = ['models', 'data', 'modelSerials', 'db']
         
         self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
-        self.CLASSIFY_MODE = 'recent'
+        self.CLASSIFY_MODE = 'recent-new'
         self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
 
     def setMode(self,mode):
-        if mode == 'nearest' or mode == 'recent':
+        if mode == 'nearest' or mode == 'recent-new' or mode == "recent-update" or mode == "recent":
             self.CLASSIFY_MODE = mode
         else:
-            self.CLASSIFY_MODE = 'recent'
+            self.CLASSIFY_MODE = 'recent-new'
 
     def classify(self,data, MLEPLearner):
         # sve data item to scheduledDataFile
@@ -528,11 +624,7 @@ class MLEPPredictionServer():
             self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
             self.SCHEDULED_DATA_FILE_OPERATOR.write(json.dumps(data)+'\n')
 
-        if self.CLASSIFY_MODE == 'recent':
-            # get more recent created models by timestamp
-            return MLEPLearner.classify(data, "recent")
-        else:
-            return MLEPLearner.classify(data, "nearest")
+        return MLEPLearner.classify(data)
             
 
 
