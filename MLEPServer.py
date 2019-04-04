@@ -120,6 +120,7 @@ class MLEPLearningServer():
         cursor.execute("""Drop Table IF EXISTS Models;""")
         cursor.execute("""CREATE TABLE Models
                                 (   modelid         text,
+                                    parentmodel     text,
                                     pipelineName    text, 
                                     timestamp       real,
                                     data_centroid   array,
@@ -131,7 +132,8 @@ class MLEPLearningServer():
                                     fscore          real,
                                     type            text,
                                     active          integer,
-                                    PRIMARY KEY(modelid))""")
+                                    PRIMARY KEY(modelid)),
+                                    FOREIGN KEY(parentmodel) REFERENCES Models(trainingModel)""")
         self.DB_CONN.commit()
         cursor.close()
     
@@ -172,6 +174,8 @@ class MLEPLearningServer():
                     # Scheduled update
                     self.update(scheduledTrainingData,models='all')
                     std_flush("Completed Scheduled Model Update at", readable_time())
+
+                    std_flush("Generated the following models: ", self.RECENT_MODELS)
                 
                 self.scheduledFilterGenerateUpdateTimer = self.overallTimer
                 
@@ -247,6 +251,31 @@ class MLEPLearningServer():
 
         return precision, recall, score, model, centroid
 
+    def updatePipelineModel(self,data, modelSaveName, pipeline):
+        """ Update a pipeline model using provided data """
+        
+        # Simplified pipeline. First entry is Encoder; Second entry is the actual Model
+        
+        # Need to set up encoder and pipeline using parent modelSaveName...
+
+        encoderName = pipeline["sequence"][0]
+        pipelineModel = pipeline["sequence"][1]
+
+        # Perform lookup
+        pipelineModelName = self.MLEPModels[pipelineModel]["scriptName"]
+        pipelineModelModule = __import__("config.LearningModel.%s"%pipelineModelName, fromlist=[pipelineModelName])
+        pipelineModelClass = getattr(pipelineModelModule,pipelineModelName)
+
+        model = pipelineModelClass()
+        model.clone(self.MODELS[modelSaveName])
+
+        X_train = self.ENCODERS[encoderName].batchEncode([item['text'] for item in data])
+        centroid = X_train.mean(axis=0)
+        y_train = [item['label'] for item in data]
+
+        precision, recall, score = model.update_and_test(X_train, y_train)
+
+        return precision, recall, score, model, centroid
     
     def update(self, traindata, models='all'):
         # for each model in self.MODELS
@@ -255,9 +284,61 @@ class MLEPLearningServer():
         # push details to DB
         # if copy's source is in SELF.RECENT, add it to self.RECENT as well
 
-        for modelSaveName in self.MODELS:
-            
+        modelSaveNames = [modelSaveName for modelSaveName in self.MODELS]
+        modelDetails = self.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
 
+        pipelineNameDict = self.getDetails(modelDetails, 'pipelineName', 'dict')
+
+        for modelSaveName in modelSaveNames:
+            # copy model
+            # set up new model
+            currentPipeline = self.MLEPPipelines[pipelineNameDict[modelSaveName]]
+            precision, recall, score, pipelineTrained, data_centroid = self.updatePipelineModel(traindata, modelSaveName, currentPipeline)
+            timestamp = time.time()
+            modelIdentifier = time_to_id(timestamp)
+            modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
+            trainDataSavePath = ""
+            testDataSavePath = ""
+            # TODO add parent model for this model!!!!!
+
+            # save the model (i.e. host it)
+            self.MODELS[modelSavePath] = pipelineTrained
+            # Because we are simplifying this implementation, we don't actually have pipeline families. Every pipelien is part of the w2v family
+            # So we can actually just store data_centroids locally
+            self.CENTROIDS[modelSavePath] = data_centroid
+            del pipelineTrained
+            # Now we save deets.
+            # Some cleaning
+            
+            columns=",".join([  "modelid","parentmodel","pipelineName","timestamp","data_centroid",
+                                "trainingModel","trainingData","testData",
+                                "precision","recall","fscore",
+                                "type","active"])
+            
+            sql = "INSERT INTO Models (%s) VALUES " % columns
+            sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?)"
+            cursor = self.DB_CONN.cursor()
+
+            
+            cursor.execute(sql, (   modelIdentifier,
+                                    str(modelSaveName),
+                                    str(currentPipeline["name"]), 
+                                    timestamp,
+                                    data_centroid,
+                                    str(modelSavePath),
+                                    str(trainDataSavePath),
+                                    str(testDataSavePath),
+                                    precision,
+                                    recall,
+                                    score,
+                                    str(currentPipeline["type"]),
+                                    1))
+            
+            self.DB_CONN.commit()
+            cursor.close()
+            recentModels.append(modelSavePath)
+
+        self.RECENT_MODELS += recentModels
 
 
 
@@ -303,20 +384,17 @@ class MLEPLearningServer():
             # Now we save deets.
             # Some cleaning
             
-            columns=",".join([  "modelid","pipelineName","timestamp","data_centroid",
+            columns=",".join([  "modelid","parentmodel","pipelineName","timestamp","data_centroid",
                                 "trainingModel","trainingData","testData",
                                 "precision","recall","fscore",
                                 "type","active"])
             
-            #columns=",".join([  "modelid","name"])
             sql = "INSERT INTO Models (%s) VALUES " % columns
-            sql += "(?,?,?,?,?,?,?,?,?,?,?,?)"
+            sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?)"
             cursor = self.DB_CONN.cursor()
-            """cursor.execute(sql, (   modelIdentifier,
-                                    str(currentPipeline["name"])
-                                    ))"""
             
             cursor.execute(sql, (   modelIdentifier,
+                                    None,
                                     str(currentPipeline["name"]), 
                                     timestamp,
                                     data_centroid,
