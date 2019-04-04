@@ -29,7 +29,7 @@ class w2vGoogleNews(DataEncoder):
     def batchEncode(self, data):
         """ batch encode. data must be a list of stringds"""
         max_len = len(data)
-        transformed_data = zeros(shape=(max_len,300))
+        transformed_data = self.zeros(shape=(max_len,300))
         
         for idx, sentence in enumerate(data):
             transformed_data[idx] = self.encode(sentence)

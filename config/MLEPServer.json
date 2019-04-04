@@ -15,6 +15,16 @@
             "desc": "The Pretrained W2v Encoder. Needs access to the w2v model file (google something.bin)",
             "scriptName": "w2vGoogleNews"
         }
+    },
+
+
+    "pipelines": {
+        "pipelineA":{
+            "name": "pipelineA",
+            "sequence": ["w2v-main", "sgd"]
+        }
+
+        
     }
         
 }
