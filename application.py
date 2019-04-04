@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     # Train with raw training data (for now)
     # Assumptions - there is a 'text' field; assume we have access to a w2v encoder
-    MLEPLearner.train(traindata=trainingData)
+    MLEPLearner.initialTrain(traindata=trainingData)
     std_flush("Completed training at", readable_time())
     MLEPLearner.addNegatives(negatives)
 

@@ -87,6 +87,8 @@ class MLEPLearningServer():
         self.HISTORICAL_NEW = []
         # All update models
         self.HISTORICAL_UPDATES = []
+        # Just the initial models
+        self.TRAIN_MODELS = []
 
 
 
@@ -327,7 +329,8 @@ class MLEPLearningServer():
         # push details to DB
         # if copy's source is in SELF.RECENT, add it to self.RECENT as well
 
-        modelSaveNames = [modelSaveName for modelSaveName in self.MODELS]
+        # TODO updated this approach because original version was exponential (YIKES!!!)
+        modelSaveNames = [modelSaveName for modelSaveName in self.RECENT_MODELS]
         modelDetails = self.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
         self.RECENT_UPDATES = []
         pipelineNameDict = self.getDetails(modelDetails, 'pipelineName', 'dict')
@@ -384,6 +387,10 @@ class MLEPLearningServer():
         self.RECENT_MODELS += recentModels
         self.RECENT_UPDATES = recentModels
 
+    def initialTrain(self,traindata,models= "all"):
+
+        self.train(traindata)
+        self.TRAIN_MODELS = [item for item in self.RECENT_MODELS]
 
 
     def train(self,traindata, models = 'all'):
