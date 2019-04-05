@@ -407,7 +407,7 @@ class MLEPLearningServer():
     def initialTrain(self,traindata,models= "all"):
 
         self.train(traindata)
-        self.TRAIN_MODELS = [item for item in self.RECENT_MODELS]
+        self.TRAIN_MODELS = self.getModelsSince()
 
 
     def train(self,traindata, models = 'all'):
@@ -579,6 +579,8 @@ class MLEPLearningServer():
             ensembleModelNames = [item for item in self.RECENT_NEW]
         elif self.MLEPConfig["select_method"] == "recent-updates":
             ensembleModelNames = [item for item in self.RECENT_UPDATES]
+        elif self.MLEPConfig["select_method"] == "train":
+            ensembleModelNames = [item for item in self.TRAIN_MODELS]
         elif self.MLEPConfig["select_method"] == "nearest":
             k_val = self.MLEPConfig["nearest-k"]
 
