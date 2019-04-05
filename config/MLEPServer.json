@@ -2,8 +2,10 @@
     "config":{
         "update_schedule":2592000000,
         "weight_method":"unweighted",
-        "select_method":"recent-new",
-        "other_select_methods":"recent-update, nearest, recent"
+        "other_weight_method":"performance, unweighted",
+        "select_method":"nearest",
+        "nearest-k": 5,
+        "other_select_methods":"recent-update, nearest, recent, recent-new, historical, historical-new, historical-update"
     },
 
     "models": {

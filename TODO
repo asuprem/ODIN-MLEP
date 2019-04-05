@@ -1,1 +1,3 @@
 > sync MLEPConfig.json's attributes to make sure they are actually contributing to operation
+
+> if self.MLEPPipelines[_pipeline]["sequence"] <-- Needs to be changed to extract encoder name from a DataModel class

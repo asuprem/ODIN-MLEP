@@ -102,3 +102,6 @@ class LearningModel:
         """
         from sklearn.base import clone as sklearnClone
         return sklearnClone(self._model)
+
+    def isUpdatable(self):
+        return True

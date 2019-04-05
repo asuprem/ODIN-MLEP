@@ -1,8 +1,14 @@
 
-import os, json, pdb, codecs
-import shutil
-from utils import *
+import os, shutil
+import json, codecs
+import time
+
+import pdb
+
+from utils import std_flush, ms_to_readable, time_to_id, adapt_array, convert_array, readable_time
+
 import numpy as np
+
 import sqlite3
 from sqlite3 import Error
 
@@ -11,7 +17,6 @@ class MLEPLearningServer():
     def __init__(self,):
         # Converts np.array to TEXT when inserting
         sqlite3.register_adapter(np.ndarray, adapt_array)
-
         # Converts TEXT to np.array when selecting
         sqlite3.register_converter("array", convert_array)
 
@@ -210,6 +215,8 @@ class MLEPLearningServer():
                 self.RECENT_NEW = self.getNewModelsSince(self.MLEPModelTimer)
                 # Only update models in prior update
                 self.RECENT_UPDATES = self.getUpdateModelsSince(self.MLEPModelTimer)
+                # All models in prior update
+                self.RECENT_MODELS = self.getModelsSince(self.MLEPModelTimer)
                 # All models
                 self.HISTORICAL = self.getModelsSince()
                 # All generated models
@@ -297,7 +304,7 @@ class MLEPLearningServer():
         pipelineModelClass = getattr(pipelineModelModule,pipelineModelName)
 
         model = pipelineModelClass()
-        X_train = self.ENCODERS['w2v-main'].batchEncode([item['text'] for item in data])
+        X_train = self.ENCODERS[encoderName].batchEncode([item['text'] for item in data])
         centroid = X_train.mean(axis=0)
         y_train = [item['label'] for item in data]
 
@@ -343,10 +350,14 @@ class MLEPLearningServer():
         modelDetails = self.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
         self.RECENT_UPDATES = []
         pipelineNameDict = self.getDetails(modelDetails, 'pipelineName', 'dict')
-        recentModels=[]
         for modelSaveName in modelSaveNames:
             # copy model
             # set up new model
+            
+            # Check if model can be updated (some models cannot be updated)
+            if not self.MODELS[modelSaveName].isUpdatable():
+                continue
+
             currentPipeline = self.MLEPPipelines[pipelineNameDict[modelSaveName]]
             precision, recall, score, pipelineTrained, data_centroid = self.updatePipelineModel(traindata, modelSaveName, currentPipeline)
             timestamp = time.time()
@@ -391,10 +402,7 @@ class MLEPLearningServer():
             
             self.DB_CONN.commit()
             cursor.close()
-            recentModels.append(modelSavePath)
 
-        self.RECENT_MODELS += recentModels
-        self.RECENT_UPDATES = recentModels
 
     def initialTrain(self,traindata,models= "all"):
 
@@ -415,7 +423,6 @@ class MLEPLearningServer():
 
         # First load the Model configurations - identify what models exist
         
-        recentModels = []
         for pipeline in self.MLEPPipelines:
             
             
@@ -469,11 +476,7 @@ class MLEPLearningServer():
             
             self.DB_CONN.commit()
             cursor.close()
-            recentModels.append(modelSavePath)
 
-            
-
-        self.RECENT_MODELS = [item for item in recentModels]
         
 
     def load_json(self,json_):
@@ -535,6 +538,7 @@ class MLEPLearningServer():
         sql = "select " + ",".join(toGet) + " from Models where trainingModel in ({seq})".format(seq=",".join(["?"]*len(ensembleModelNames)))
         cursor.execute(sql,ensembleModelNames)
         tupleResults = cursor.fetchall()
+        cursor.close()
         dictResults = {}
         for entry in tupleResults:
             dictResults[entry[0]] = {}
@@ -554,28 +558,100 @@ class MLEPLearningServer():
             details = {item:dataDict[item][keyVal] for item in dataDict}
             return details
 
-    def classify(self, data, mode="recent-new"):
-        if mode == "recent":
+    def getPipelineToModel(self,):
+        cursor = self.DB_CONN.cursor()
+        sql = "select pipelineName, trainingModel, fscore from Models"
+        cursor.execute(sql)
+        tupleResults = cursor.fetchall()
+        cursor.close()
+        dictResults = {}
+        for entry in tupleResults:
+            if entry[0] not in dictResults:
+                dictResults[entry[0]] = []
+            dictResults[entry[0]].append((entry[1], entry[2]))
+        return dictResults
+
+    def classify(self, data):
+        if self.MLEPConfig["select_method"] == "recent":
             # Step one - get list of model ids
             ensembleModelNames = [item for item in self.RECENT_MODELS]
-        elif mode == "recent-new":
+        elif self.MLEPConfig["select_method"] == "recent-new":
             ensembleModelNames = [item for item in self.RECENT_NEW]
-        elif mode == "recent-updates":
+        elif self.MLEPConfig["select_method"] == "recent-updates":
             ensembleModelNames = [item for item in self.RECENT_UPDATES]
+        elif self.MLEPConfig["select_method"] == "nearest":
+            k_val = self.MLEPConfig["nearest-k"]
+
+            # Basic optimization:
+            if k_val >= len(self.HISTORICAL):
+                ensembleModelNames = [item for item in self.HISTORICAL]
+            else:
+
+                # We have the k_val
+                # Normally, this part would use a DataModel construct (not implemented) to get the appropriate "distance" model for a specific data point
+                # But we make the assumption that all data is encoded, etc, etc, and use the encoders to get distance.
+
+                # 1. First, collect list of Encoders
+                # 2. Then create mapping of encoders -- model_save_path
+                # 3. Then for each encoder, find k-closest model_save_path
+                # 4. Put them all together and sort on performance
+                # 5. Return top-k (so two levels of k, finally returning k models)
+
+
+                # 1. First, collect list of Encoders -- model mapping
+                pipelineToModel = self.getPipelineToModel()
+                
+                # 2. Then create mapping of encoders -- model_save_path
+                encoderToModel = {}
+                for _pipeline in pipelineToModel:
+                    # Multiple pipelines can have the same encoder
+                    if self.MLEPPipelines[_pipeline]["sequence"][0] not in encoderToModel:
+                        encoderToModel[self.MLEPPipelines[_pipeline]["sequence"][0]] = []
+                    # encoderToModel[PIPELINE_NAME] = [(MODEL_NAME, PERF),(MODEL_NAME, PERF)]
+                    encoderToModel[self.MLEPPipelines[_pipeline]["sequence"][0]] += pipelineToModel[_pipeline]
+                
+                # 3. Then for each encoder, find k-closest model_save_path
+                kClosestPerEncoder = {}
+                for _encoder in encoderToModel:
+                    kClosestPerEncoder[_encoder] = []
+                    _encodedData = self.ENCODERS[_encoder].encode(data["text"])
+                    # Find distance to all appropriate models
+                    # Then sort and take top-5
+                    # This can probably be optimized to not perform unneeded Distance calculations (if, e.g. two models have the same training dataset - something to consider)
+                    # kCPE[E] = [ (NORM(encoded - centroid(modelName), performance, modelName) ... ]
+                    kClosestPerEncoder[_encoder]=[(np.linalg.norm(_encodedData-self.CENTROIDS[item[0]]), item[1], item[0]) for item in encoderToModel[_encoder]]
+                    # Default sort on first param (norm); sort on distance - smallest to largest
+                    kClosestPerEncoder[_encoder].sort(key=lambda tup:tup[0], )
+                    # Truncate to top-k
+                    kClosestPerEncoder[_encoder] = kClosestPerEncoder[_encoder][:k_val]
+
+                # 4. Put them all together and sort on performance
+                kClosest = []
+                for _encoder in kClosestPerEncoder:
+                    kClosest+=kClosestPerEncoder[_encoder]
+                kClosest.sort(key=lambda tup:tup[1], reverse=True)
+
+                # 5. Return top-k (so two levels of k, finally returning k models)
+                kClosest = kClosest[:k_val]
+                ensembleModelNames = [item[2] for item in kClosest]
+
         else:
             #recent-new
             ensembleModelNames = [item for item in self.RECENT_NEW]
 
         # Run the sqlite query to get model details
         modelDetails = self.getModelDetails(ensembleModelNames)
-        
-        if self.MLEPConfig["weight_method"] == "unweighted":
-            weights = len(ensembleModelNames)*[1.0/len(ensembleModelNames)]
-        else:
+            
+        if self.MLEPConfig["weight_method"] == "performancce":
             # request DB for performance (f-score)
             weights = self.getDetails(modelDetails, 'fscore', 'list', order=ensembleModelNames)
             sumWeights = sum(weights)
             weights = [item/sumWeights for item in weights]
+        elif self.MLEPConfig["weight_method"] == "unweighted":
+            weights = len(ensembleModelNames)*[1.0/len(ensembleModelNames)]
+        else:
+            weights = len(ensembleModelNames)*[1.0/len(ensembleModelNames)]
+        
 
         # TODO; Another simplification for this implementation. Assume binary classifier, and have built in Ensemble weighting
         # Yet another simplification - single encoder.
@@ -623,14 +699,7 @@ class MLEPPredictionServer():
         self.setups = ['models', 'data', 'modelSerials', 'db']
         
         self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
-        self.CLASSIFY_MODE = 'recent-new'
         self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
-
-    def setMode(self,mode):
-        if mode == 'nearest' or mode == 'recent-new' or mode == "recent-update" or mode == "recent":
-            self.CLASSIFY_MODE = mode
-        else:
-            self.CLASSIFY_MODE = 'recent-new'
 
     def classify(self,data, MLEPLearner):
         # sve data item to scheduledDataFile
