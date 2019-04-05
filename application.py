@@ -1,10 +1,21 @@
-import os, time, json
+import os, time, json, sys, pdb
 from MLEPServer import MLEPLearningServer, MLEPPredictionServer
 from utils import std_flush, readable_time
 
 
 
 if __name__ == "__main__":
+
+    # Where to save data:
+    #pdb.set_trace()
+    writePath = 'dataCollect.csv'
+    if len(sys.argv) >= 2:
+        savePath = open(writePath, 'a')
+        savePath.write(sys.argv[1] + ',')
+        
+    else:
+        savePath = None
+
     internalTimer = 0
 
     # TODO --> sortDataTimes()
@@ -54,6 +65,10 @@ if __name__ == "__main__":
             mistakes.append(0.0)
         if len(totalCounter) % 100 == 0 and len(totalCounter)>0:
             std_flush("Completed", len(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/sum(totalCounter[-100:]))
-        
+            if savePath is not None:
+                savePath.write(str(sum(mistakes[-100:])/sum(totalCounter[-100:]))+',')
+        # Perform data collection???
+    savePath.write('\n')
+    savePath.close()    
 
     MLEPLearner.shutdown()
