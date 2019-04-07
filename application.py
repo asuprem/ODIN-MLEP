@@ -1,17 +1,49 @@
+# pylint: disable=no-value-for-parameter
 import os, time, json, sys, pdb
 from MLEPServer import MLEPLearningServer, MLEPPredictionServer
-from utils import std_flush, readable_time
+from utils import std_flush, readable_time, load_json
+import click
+
+"""
+Arguments
+
+python application.py experimentName [updateSchedule] [weightMethod] [selectMethod] [filterMethod] [kVal]
+
+"""
 
 
+@click.command()
+@click.argument('experimentname')
+@click.option('--update', type=int)
+@click.option('--weights', type=click.Choice(["unweighted", "performance"]))
+@click.option('--select', type=click.Choice(["train", "historical", "historical-new", "historical-updates","recent","recent-new","recent-updates"]))
+@click.option('--filter', type=click.Choice(["no-filter", "top-k", "nearest"]))
+@click.option('--kval', type=int)
+def main(experimentname, update, weights, select, filter, kval):
+    # We'll load thhe config file, make changes, and write a secondary file for experiments
+    mlepConfig = load_json('./config/MLEPServer.json')
+    if update is not None:
+        mlepConfig['update_schedule'] = update
+    if weights is not None:
+        mlepConfig['weight_method'] = weights
+    if select is not None:
+        mlepConfig['select_method'] = select
+    if filter is not None:
+        mlepConfig['filter_select'] = filter
+    if kval is not None:
+        mlepConfig['k-val'] = kval
+    
+    PATH_TO_CONFIG_FILE = './config/ExperimentalConfig.json'
+    with open(PATH_TO_CONFIG_FILE, 'w') as write_:
+        write_.write(json.dumps(mlepConfig))
 
-if __name__ == "__main__":
-
+    
     # Where to save data:
     #pdb.set_trace()
     writePath = 'dataCollect.csv'
     if len(sys.argv) >= 2:
         savePath = open(writePath, 'a')
-        savePath.write(sys.argv[1] + ',')
+        savePath.write(experimentname + ',')
         
     else:
         savePath = None
@@ -36,9 +68,7 @@ if __name__ == "__main__":
             trainingData.append(json.loads(line.strip()))
     
     # Now we have the data
-
-
-    MLEPLearner = MLEPLearningServer()
+    MLEPLearner = MLEPLearningServer(PATH_TO_CONFIG_FILE)
     MLEPPredictor = MLEPPredictionServer()
 
     # Train with raw training data (for now)
@@ -72,3 +102,7 @@ if __name__ == "__main__":
     savePath.close()    
 
     MLEPLearner.shutdown()
+
+
+if __name__ == "__main__":
+    main()

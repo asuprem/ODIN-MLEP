@@ -1,4 +1,4 @@
-import sys, pdb
+import sys, pdb, json
 from datetime import datetime
 import time
 import sqlite3
@@ -39,3 +39,6 @@ def convert_array(text):
     out = io.BytesIO(text)
     out.seek(0)
     return np.load(out)
+
+def load_json(json_):
+    return json.load(codecs.open(json_, encoding='utf-8'))

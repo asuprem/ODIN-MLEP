@@ -14,7 +14,7 @@ from sqlite3 import Error
 
 
 class MLEPLearningServer():
-    def __init__(self,):
+    def __init__(self,PATH_TO_CONFIG_FILE):
         # Converts np.array to TEXT when inserting
         sqlite3.register_adapter(np.ndarray, adapt_array)
         # Converts TEXT to np.array when selecting
@@ -22,7 +22,7 @@ class MLEPLearningServer():
 
         std_flush("Initializing")
 
-        self.config = self.load_json('config/MLEPServer.json')
+        self.config = self.load_json(PATH_TO_CONFIG_FILE)
         self.MLEPConfig = self.config["config"]
         self.MLEPEncoders = self.config["encoders"]
         self.MLEPModels = self.config["models"]
