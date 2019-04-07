@@ -573,8 +573,8 @@ class MLEPLearningServer():
             # entry[2] --> fscore               item[1] in step 3 upon return
             dictResults[entry[0]].append((entry[1], entry[2]))
         return dictResults
-
-    def classify(self, data):
+    
+    def getValidModels(self):
         if self.MLEPConfig["select_method"] == "recent":
             # Step one - get list of model ids
             ensembleModelNames = [item for item in self.RECENT_MODELS]
@@ -584,76 +584,122 @@ class MLEPLearningServer():
             ensembleModelNames = [item for item in self.RECENT_UPDATES]
         elif self.MLEPConfig["select_method"] == "train":
             ensembleModelNames = [item for item in self.TRAIN_MODELS]
-        elif self.MLEPConfig["select_method"] == "nearest":
-            k_val = self.MLEPConfig["nearest-k"]
-
-            # Basic optimization:
-            if k_val >= len(self.HISTORICAL):
-                ensembleModelNames = [item for item in self.HISTORICAL]
-            else:
-
-                # We have the k_val
-                # Normally, this part would use a DataModel construct (not implemented) to get the appropriate "distance" model for a specific data point
-                # But we make the assumption that all data is encoded, etc, etc, and use the encoders to get distance.
-
-                # 1. First, collect list of Encoders
-                # 2. Then create mapping of encoders -- model_save_path
-                # 3. Then for each encoder, find k-closest model_save_path that is part of valid-list (??)
-                # 4. Put them all together and sort on performance
-                # 5. Return top-k (so two levels of k, finally returning k models)
-
-
-                # 1. First, collect list of Encoders -- model mapping
-                pipelineToModel = self.getPipelineToModel()
-                
-                # 2. Then create mapping of encoders -- model_save_path
-                encoderToModel = {}
-                for _pipeline in pipelineToModel:
-                    # Multiple pipelines can have the same encoder
-                    if self.MLEPPipelines[_pipeline]["sequence"][0] not in encoderToModel:
-                        encoderToModel[self.MLEPPipelines[_pipeline]["sequence"][0]] = []
-                    # encoderToModel[PIPELINE_NAME] = [(MODEL_NAME, PERF),(MODEL_NAME, PERF)]
-                    encoderToModel[self.MLEPPipelines[_pipeline]["sequence"][0]] += pipelineToModel[_pipeline]
-                
-                # 3. Then for each encoder, find k-closest model_save_path
-                kClosestPerEncoder = {}
-                for _encoder in encoderToModel:
-                    kClosestPerEncoder[_encoder] = []
-                    _encodedData = self.ENCODERS[_encoder].encode(data["text"])
-                    # Find distance to all appropriate models
-                    # Then sort and take top-5
-                    # This can probably be optimized to not perform unneeded Distance calculations (if, e.g. two models have the same training dataset - something to consider)
-                    # kCPE[E] = [ (NORM(encoded - centroid(modelName), performance, modelName) ... ]
-                    #   NOTE --> We need to make sure item[0] (modelName)
-                    #   NOTE --> item[1] : fscore
-                    # Add additional check for whether modelName is in list of validModels (ensembleModelNames)
-                    kClosestPerEncoder[_encoder]=[(np.linalg.norm(_encodedData-self.CENTROIDS[item[0]]), item[1], item[0]) for item in encoderToModel[_encoder]]
-                    # Default sort on first param (norm); sort on distance - smallest to largest
-                    # tup[0] --> norm
-                    # tup[1] --> fscore
-                    # tup[2] --> modelName
-                    # Sorting by tup[0] --> norm
-                    kClosestPerEncoder[_encoder].sort(key=lambda tup:tup[0], )
-                    # Truncate to top-k
-                    kClosestPerEncoder[_encoder] = kClosestPerEncoder[_encoder][:k_val]
-
-                # 4. Put them all together and sort on performance
-                kClosest = []
-                for _encoder in kClosestPerEncoder:
-                    kClosest+=kClosestPerEncoder[_encoder]
-                # Sorting by tup[1] --> fscore
-                kClosest.sort(key=lambda tup:tup[1], reverse=True)
-
-                # 5. Return top-k (so two levels of k, finally returning k models)
-                # item[0] --> norm
-                # item[1] --> fscore
-                # item[2] --> modelName
-                kClosest = kClosest[:k_val]
-                ensembleModelNames = [item[2] for item in kClosest]
-
+        elif self.MLEPConfig["select_method"] == "historical":
+            ensembleModelNames = [item for item in self.HISTORICAL]
+        elif self.MLEPConfig["select_method"] == "historical-new":
+            ensembleModelNames = [item for item in self.HISTORICAL_NEW]
+        elif self.MLEPConfig["select_method"] == "historical-updates":
+            ensembleModelNames = [item for item in self.HISTORICAL_UPDATES]
         else:
             #recent-new
             ensembleModelNames = [item for item in self.RECENT_NEW]
+        return ensembleModelNames
+    
+    def getTopKPerformanceModels(self,ensembleModelNames):
+        # basic optimization:
+        if self.MLEPConfig["k_val"] >= len(ensembleModelNames):
+            pass 
+        else:
+            modelDetails = self.getModelDetails(ensembleModelNames)
+            weights = self.getDetails(modelDetails, 'fscore', 'list', order=ensembleModelNames)
+            mappedWeights = zip(weights, ensembleModelNames)
+            mappedWeights.sort(key=lambda tup:tup[0], reverse=True)
+            # Now we have models sorted by performance. Truncate
+            mappedWeights = mappedWeights[:self.MLEPConfig["k-val"]]
+            ensembleModelNames = [item[1] for item in mappedWeights]
+        return ensembleModelNames
+
+    def getTopKNearestModels(self,ensembleModelNames, data):
+        # find top-k nearest centroids
+        k_val = self.MLEPConfig["k-val"]
+        # Basic optimization:
+        if k_val >= len(ensembleModelNames):
+            #ensembleModelNames = [item for item in self.HISTORICAL]
+            # because we have a prelim ensembleModelNames!!!
+            pass
+        else:
+
+            # We have the k_val
+            # Normally, this part would use a DataModel construct (not implemented) to get the appropriate "distance" model for a specific data point
+            # But we make the assumption that all data is encoded, etc, etc, and use the encoders to get distance.
+
+            # 1. First, collect list of Encoders
+            # 2. Then create mapping of encoders -- model_save_path
+            # 3. Then for each encoder, find k-closest model_save_path that is part of valid-list (??)
+            # 4. Put them all together and sort on performance
+            # 5. Return top-k (so two levels of k, finally returning k models)
+
+            # dictify for O(1) check
+            ensembleModelNamesValid = {item:1 for item in ensembleModelNames}
+            # 1. First, collect list of Encoders -- model mapping
+            pipelineToModel = self.getPipelineToModel()
+            
+            # 2. Then create mapping of encoders -- model_save_path
+            encoderToModel = {}
+            for _pipeline in pipelineToModel:
+                # Multiple pipelines can have the same encoder
+                if self.MLEPPipelines[_pipeline]["sequence"][0] not in encoderToModel:
+                    encoderToModel[self.MLEPPipelines[_pipeline]["sequence"][0]] = []
+                # encoderToModel[PIPELINE_NAME] = [(MODEL_NAME, PERF),(MODEL_NAME, PERF)]
+                encoderToModel[self.MLEPPipelines[_pipeline]["sequence"][0]] += pipelineToModel[_pipeline]
+            
+            # 3. Then for each encoder, find k-closest model_save_path
+            kClosestPerEncoder = {}
+            for _encoder in encoderToModel:
+                kClosestPerEncoder[_encoder] = []
+                _encodedData = self.ENCODERS[_encoder].encode(data["text"])
+                # Find distance to all appropriate models
+                # Then sort and take top-5
+                # This can probably be optimized to not perform unneeded Distance calculations (if, e.g. two models have the same training dataset - something to consider)
+                # kCPE[E] = [ (NORM(encoded - centroid(modelName), performance, modelName) ... ]
+                #   NOTE --> We need to make sure item[0] (modelName)
+                #   NOTE --> item[1] : fscore
+                # Add additional check for whether modelName is in list of validModels (ensembleModelNames)
+                kClosestPerEncoder[_encoder]=[(np.linalg.norm(_encodedData-self.CENTROIDS[item[0]]), item[1], item[0]) for item in encoderToModel[_encoder] if item[0] in ensembleModelNamesValid]
+                # Default sort on first param (norm); sort on distance - smallest to largest
+                # tup[0] --> norm
+                # tup[1] --> fscore
+                # tup[2] --> modelName
+                # Sorting by tup[0] --> norm
+                kClosestPerEncoder[_encoder].sort(key=lambda tup:tup[0], )
+                # Truncate to top-k
+                kClosestPerEncoder[_encoder] = kClosestPerEncoder[_encoder][:k_val]
+
+            # 4. Put them all together and sort on performance
+            kClosest = []
+            for _encoder in kClosestPerEncoder:
+                kClosest+=kClosestPerEncoder[_encoder]
+            # Sorting by tup[1] --> fscore
+            kClosest.sort(key=lambda tup:tup[1], reverse=True)
+
+            # 5. Return top-k (so two levels of k, finally returning k models)
+            # item[0] --> norm
+            # item[1] --> fscore
+            # item[2] --> modelName
+            kClosest = kClosest[:k_val]
+            ensembleModelNames = [item[2] for item in kClosest]
+        return ensembleModelNames
+
+    def classify(self, data):
+        # First set up list of correct models
+        ensembleModelNames = self.getValidModels()
+
+        # Now that we have collection of candidaate models, we use filter_select to decide how to choose the right model
+
+        if self.MLEPConfig["filter_select"] == "top-k":
+            # sort on top-k best performers
+            ensembleModelNames = self.getTopKPerformanceModels(ensembleModelNames)
+        elif self.MLEPConfig["filter_select"] == "nearest":
+            # do knn
+            ensembleModelNames = self.getTopKNearestModels(ensembleModelNames, data)
+        elif self.MLEPConfig["filter_select"] == "no-filter":
+            # Use all models in ensembleModelNames as ensemble
+            pass
+        else:
+            # Default - use all (no-filter)
+            pass
+            
+        
 
         # Given ensembleModelNames, use all of them as part of ensemble
 
