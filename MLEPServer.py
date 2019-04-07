@@ -568,6 +568,9 @@ class MLEPLearningServer():
         for entry in tupleResults:
             if entry[0] not in dictResults:
                 dictResults[entry[0]] = []
+            # entry[0] --> pipelineName
+            # entry[1] --> trainingModel        item[0] in step 3 upon return
+            # entry[2] --> fscore               item[1] in step 3 upon return
             dictResults[entry[0]].append((entry[1], entry[2]))
         return dictResults
 
@@ -595,7 +598,7 @@ class MLEPLearningServer():
 
                 # 1. First, collect list of Encoders
                 # 2. Then create mapping of encoders -- model_save_path
-                # 3. Then for each encoder, find k-closest model_save_path
+                # 3. Then for each encoder, find k-closest model_save_path that is part of valid-list (??)
                 # 4. Put them all together and sort on performance
                 # 5. Return top-k (so two levels of k, finally returning k models)
 
@@ -621,8 +624,15 @@ class MLEPLearningServer():
                     # Then sort and take top-5
                     # This can probably be optimized to not perform unneeded Distance calculations (if, e.g. two models have the same training dataset - something to consider)
                     # kCPE[E] = [ (NORM(encoded - centroid(modelName), performance, modelName) ... ]
+                    #   NOTE --> We need to make sure item[0] (modelName)
+                    #   NOTE --> item[1] : fscore
+                    # Add additional check for whether modelName is in list of validModels (ensembleModelNames)
                     kClosestPerEncoder[_encoder]=[(np.linalg.norm(_encodedData-self.CENTROIDS[item[0]]), item[1], item[0]) for item in encoderToModel[_encoder]]
                     # Default sort on first param (norm); sort on distance - smallest to largest
+                    # tup[0] --> norm
+                    # tup[1] --> fscore
+                    # tup[2] --> modelName
+                    # Sorting by tup[0] --> norm
                     kClosestPerEncoder[_encoder].sort(key=lambda tup:tup[0], )
                     # Truncate to top-k
                     kClosestPerEncoder[_encoder] = kClosestPerEncoder[_encoder][:k_val]
@@ -631,15 +641,21 @@ class MLEPLearningServer():
                 kClosest = []
                 for _encoder in kClosestPerEncoder:
                     kClosest+=kClosestPerEncoder[_encoder]
+                # Sorting by tup[1] --> fscore
                 kClosest.sort(key=lambda tup:tup[1], reverse=True)
 
                 # 5. Return top-k (so two levels of k, finally returning k models)
+                # item[0] --> norm
+                # item[1] --> fscore
+                # item[2] --> modelName
                 kClosest = kClosest[:k_val]
                 ensembleModelNames = [item[2] for item in kClosest]
 
         else:
             #recent-new
             ensembleModelNames = [item for item in self.RECENT_NEW]
+
+        # Given ensembleModelNames, use all of them as part of ensemble
 
         # Run the sqlite query to get model details
         modelDetails = self.getModelDetails(ensembleModelNames)
