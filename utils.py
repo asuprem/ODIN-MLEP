@@ -1,4 +1,4 @@
-import sys, pdb, json
+import sys, pdb, json, codecs
 from datetime import datetime
 import time
 import sqlite3

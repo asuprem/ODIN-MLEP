@@ -11,3 +11,4 @@ old/*
 *memory*cache*
 .vscode
 *.csv
+outputs/

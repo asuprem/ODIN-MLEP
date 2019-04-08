@@ -5,7 +5,7 @@
 # filterSelect -- nearest, top-k, no-filter
 update=( "2592000000" "1210000000" )
 weights=( "unweighted" "performance" )
-select=( "train" "historical" "historical-new" "historical-updates" "recent" "recent-new" "recent-updates" )
+select=( "train" "recent" "recent-new" "recent-updates" "historical-new" "historical-updates"  "historical" )
 filter=( "no-filter" "top-k" "nearest" )
 kval=( "5" )
 for updatemethod in "${update[@]}"
@@ -18,7 +18,9 @@ do
             do
                 for kvalmethod in "${kval[@]}"
                 do
-                    python application.py expname --update ${updatemethod} --weights ${weightsmethod} --select ${selectmethod} --filter ${filtermethod} --kval ${kvalmethod} >> expLogs.log 2&>1
+                    echo "python application.py expname --update ${updatemethod} --weights ${weightsmethod} --select ${selectmethod} --filter ${filtermethod} --kval ${kvalmethod} >> expLogs.log 2>&1" >> expLogs.log 2>&1
+                    echo "python application.py expname --update ${updatemethod} --weights ${weightsmethod} --select ${selectmethod} --filter ${filtermethod} --kval ${kvalmethod} >> expLogs.log 2>&1" >> currentExp.log 2>&1
+                    python application.py expname --update ${updatemethod} --weights ${weightsmethod} --select ${selectmethod} --filter ${filtermethod} --kval ${kvalmethod} >> expLogs.log 2>&1
                 done
             done
         done

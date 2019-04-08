@@ -41,13 +41,9 @@ def main(experimentname, update, weights, select, filter, kval):
     # Where to save data:
     #pdb.set_trace()
     writePath = 'dataCollect.csv'
-    if len(sys.argv) >= 2:
-        savePath = open(writePath, 'a')
-        savePath.write(experimentname + ',')
-        
-    else:
-        savePath = None
-
+    savePath = open(writePath, 'a')
+    savePath.write(experimentname + ',')
+    
     internalTimer = 0
 
     # TODO --> sortDataTimes()
@@ -93,15 +89,17 @@ def main(experimentname, update, weights, select, filter, kval):
             mistakes.append(1.0)
         else:
             mistakes.append(0.0)
-        if len(totalCounter) % 100 == 0 and len(totalCounter)>0:
+        if len(totalCounter) % 1000 == 0 and len(totalCounter)>0:
             std_flush("Completed", len(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/sum(totalCounter[-100:]))
-            if savePath is not None:
-                savePath.write(str(sum(mistakes[-100:])/sum(totalCounter[-100:]))+',')
+        if len(totalCounter) % 100 == 0 and len(totalCounter)>0:
+            savePath.write(str(sum(mistakes[-100:])/sum(totalCounter[-100:]))+',')
         # Perform data collection???
     savePath.write('\n')
     savePath.close()    
 
     MLEPLearner.shutdown()
+
+    std_flush("\n-----------------------------\nCOMPLETED\n-----------------------------\n")
 
 
 if __name__ == "__main__":
