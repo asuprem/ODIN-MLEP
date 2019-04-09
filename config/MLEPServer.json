@@ -59,13 +59,13 @@
         },
 
         "pipelineC":{
-            "name": "pipelineB",
+            "name": "pipelineC",
             "sequence": ["w2v-main", "decisiontree"],
             "type":"binary"
         },
 
         "pipelineD":{
-            "name": "pipelineB",
+            "name": "pipelineD",
             "sequence": ["w2v-main", "randforest"],
             "type":"binary"
         }
