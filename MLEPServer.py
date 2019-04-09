@@ -54,9 +54,7 @@ class MLEPLearningServer():
         self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
         std_flush("Finished up path variables at ", readable_time())
         
-        """ create scheduled file """
-        open(self.SCHEDULED_DATA_FILE, 'w').close()
-        std_flush("Created data file at", readable_time())
+        
 
         try:
             shutil.rmtree(self.SOURCE_DIR)
@@ -67,6 +65,10 @@ class MLEPLearningServer():
             os.makedirs(os.path.join(self.SOURCE_DIR, directory))
 
         std_flush("Finished setting up directory structure at", readable_time())
+
+        """ create scheduled file """
+        open(self.SCHEDULED_DATA_FILE, 'w').close()
+        std_flush("Created data file at", readable_time())
 
         """ create Database Connections and perform initial setup """
         self.DB_CONN = None
