@@ -439,7 +439,7 @@ class MLEPLearningServer():
             currentPipeline = self.MLEPPipelines[pipeline]
             precision, recall, score, pipelineTrained, data_centroid = self.generatePipeline(traindata, currentPipeline)
             timestamp = time.time()
-            modelIdentifier = time_to_id(timestamp)
+            modelIdentifier = self.createModelId(timestamp, pipelineTrained,score) 
             modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
             trainDataSavePath = ""
             testDataSavePath = ""
@@ -478,7 +478,11 @@ class MLEPLearningServer():
             
             self.DB_CONN.commit()
             cursor.close()
-
+    def createModelId(self, timestamp, pipelineName, fscore):
+        strA = time_to_id(timestamp)
+        strB = time_to_id(hash(pipelineName))
+        strC = time_to_id(fscore, 5)
+        return "_".join([strA,strB,strC])
         
 
     def load_json(self,json_):
@@ -708,7 +712,7 @@ class MLEPLearningServer():
         # Run the sqlite query to get model details
         modelDetails = self.getModelDetails(ensembleModelNames)
             
-        if self.MLEPConfig["weight_method"] == "performancce":
+        if self.MLEPConfig["weight_method"] == "performance":
             # request DB for performance (f-score)
             weights = self.getDetails(modelDetails, 'fscore', 'list', order=ensembleModelNames)
             sumWeights = sum(weights)

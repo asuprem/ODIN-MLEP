@@ -17,12 +17,12 @@ def readable_time():
 def ms_to_readable(ms):
     return datetime.fromtimestamp(ms/1000).strftime('%Y-%m-%d %H:%M:%S')
 
-def time_to_id(ms=None):
+def time_to_id(ms=None, lval = 5):
     DICTA={str(idx):item for idx,item in enumerate("abcdefghij")}
     if ms is None:
         ms = time.time()
-    ms_str = "%.5f"%time.time()
-    ms_str = ms_str[:-6]+ms_str[-5:]
+    ms_str = ("%."+str(lval)+"f")%ms
+    ms_str = ms_str[:-(lval+1)]+ms_str[-lval:]
     return ''.join([DICTA[item] for item in ms_str])
 
 
