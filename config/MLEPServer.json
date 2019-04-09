@@ -21,6 +21,16 @@
             "name": "logreg",
             "desc": "Sklearn version of Logreg",
             "scriptName": "sklearnLogReg"
+        },
+        "decisiontree" :{
+            "name": "decisiontree",
+            "desc": "Sklearn version of Decision Tree",
+            "scriptName": "sklearnDecisionTree"
+        },
+        "randforest" :{
+            "name": "randforest",
+            "desc": "Sklearn version of Random Forest",
+            "scriptName": "sklearnRandomForest"
         }
     },
 
@@ -45,6 +55,18 @@
         "pipelineB":{
             "name": "pipelineB",
             "sequence": ["w2v-main", "logreg"],
+            "type":"binary"
+        },
+
+        "pipelineC":{
+            "name": "pipelineB",
+            "sequence": ["w2v-main", "decisiontree"],
+            "type":"binary"
+        },
+
+        "pipelineD":{
+            "name": "pipelineB",
+            "sequence": ["w2v-main", "randforest"],
             "type":"binary"
         }
 

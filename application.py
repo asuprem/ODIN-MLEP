@@ -23,15 +23,15 @@ def main(experimentname, update, weights, select, filter, kval):
     # We'll load thhe config file, make changes, and write a secondary file for experiments
     mlepConfig = load_json('./config/MLEPServer.json')
     if update is not None:
-        mlepConfig['update_schedule'] = update
+        mlepConfig["config"]['update_schedule'] = update
     if weights is not None:
-        mlepConfig['weight_method'] = weights
+        mlepConfig["config"]['weight_method'] = weights
     if select is not None:
-        mlepConfig['select_method'] = select
+        mlepConfig["config"]['select_method'] = select
     if filter is not None:
-        mlepConfig['filter_select'] = filter
+        mlepConfig["config"]['filter_select'] = filter
     if kval is not None:
-        mlepConfig['k-val'] = kval
+        mlepConfig["config"]['k-val'] = kval
     
     PATH_TO_CONFIG_FILE = './config/ExperimentalConfig.json'
     with open(PATH_TO_CONFIG_FILE, 'w') as write_:
