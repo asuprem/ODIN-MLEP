@@ -363,7 +363,7 @@ class MLEPLearningServer():
             currentPipeline = self.MLEPPipelines[pipelineNameDict[modelSaveName]]
             precision, recall, score, pipelineTrained, data_centroid = self.updatePipelineModel(traindata, modelSaveName, currentPipeline)
             timestamp = time.time()
-            modelIdentifier = time_to_id(timestamp)
+            modelIdentifier = self.createModelId(timestamp, pipelineTrained, score)
             modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
             trainDataSavePath = ""
             testDataSavePath = ""
