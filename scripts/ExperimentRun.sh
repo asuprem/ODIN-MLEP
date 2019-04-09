@@ -4,7 +4,9 @@
 # selectMethod -- historical, historical-new, historical-update, train, recent, recent-new, recent-update
 # filterSelect -- nearest, top-k, no-filter
 experimentOutputLogfile="./logfiles/experimentOutputLogfile.log"
+rm $experimentOutputLogfile
 experimentCurrentLogfile="./logfiles/experimentNames.log"
+rm $experimentCurrentLogfile
 update=( "2592000000,M" "1210000000,F" )
 weights=( "unweighted,U" "performance,P" )
 select=( "train,TT" "recent,RR" "recent-new,RN" "recent-updates,RU" "historical-new,HN" "historical-updates,HU"  "historical,HH" )
@@ -26,8 +28,8 @@ do
                 do
                     IFS=',' read kvalVal kvalName <<< "${kvalmethod}"
                     expName="${updateName}-${weightName}-${selectName}-${filterName}-${kvalName}"
-                    echo "python application.py ${expname} --update ${updateVal} --weights ${weightVal} --select ${selectVal} --filter ${filterVal} --kval ${kvalVal} >> expLogs.log 2>&1" >> $experimentOutputLogfile 2>&1
-                    echo "python application.py ${expname} --update ${updateVal} --weights ${weightVal} --select ${selectVal} --filter ${filterVal} --kval ${kvalVal} >> ${experimentOutputLogfile} 2>&1" >> $experimentCurrentLogfile 2>&1
+                    echo "python application.py ${expName} --update ${updateVal} --weights ${weightVal} --select ${selectVal} --filter ${filterVal} --kval ${kvalVal} >> expLogs.log 2>&1" >> $experimentOutputLogfile 2>&1
+                    echo "python application.py ${expName} --update ${updateVal} --weights ${weightVal} --select ${selectVal} --filter ${filterVal} --kval ${kvalVal} >> ${experimentOutputLogfile} 2>&1" >> $experimentCurrentLogfile 2>&1
                     #python application.py expname --update ${updatemethod} --weights ${weightsmethod} --select ${selectmethod} --filter ${filtermethod} --kval ${kvalmethod} >> expLogs.log 2>&1
                 done
             done
