@@ -603,7 +603,7 @@ class MLEPLearningServer():
     
     def getTopKPerformanceModels(self,ensembleModelNames):
         # basic optimization:
-        if self.MLEPConfig["k_val"] >= len(ensembleModelNames):
+        if self.MLEPConfig["k-val"] >= len(ensembleModelNames):
             pass 
         else:
             modelDetails = self.getModelDetails(ensembleModelNames)
