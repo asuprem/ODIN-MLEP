@@ -58,8 +58,8 @@ class MLEPLearningServer():
 
         try:
             shutil.rmtree(self.SOURCE_DIR)
-        except:
-            pass
+        except Exception as e:
+            std_flush("Error deleting directory tree: ", str(e))
         os.makedirs(self.SOURCE_DIR)
         for directory in self.setups:
             os.makedirs(os.path.join(self.SOURCE_DIR, directory))
