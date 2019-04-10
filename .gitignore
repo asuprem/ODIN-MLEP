@@ -13,6 +13,6 @@ old/*
 *.csv
 outputs/
 local/
-bow.txt
 !config/Sources/__init__.py
 config/Sources/*
+config/RawSources/*

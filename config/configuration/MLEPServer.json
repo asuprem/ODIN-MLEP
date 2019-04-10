@@ -40,7 +40,7 @@
         "w2v-main":{
             "name": "w2v-main",
             "desc": "The Pretrained W2v Encoder. Needs access to the w2v model file (google something.bin)",
-            "scriptName": "w2vGoogleNews",
+            "scriptName": "w2vGoogleNews"
         },
 
         "bowDefault":{
