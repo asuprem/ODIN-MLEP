@@ -40,10 +40,15 @@
         "w2v-main":{
             "name": "w2v-main",
             "desc": "The Pretrained W2v Encoder. Needs access to the w2v model file (google something.bin)",
-            "scriptName": "w2vGoogleNews"
+            "scriptName": "w2vGoogleNews",
+        },
+
+        "bowDefault":{
+            "name": "bowDefault",
+            "desc": "Default bow Encoder using bow.model",
+            "scriptName": "bowEncoder"
         }
     },
-
 
     "pipelines": {
         "pipelineA":{
