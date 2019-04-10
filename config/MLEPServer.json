@@ -49,25 +49,29 @@
         "pipelineA":{
             "name": "pipelineA",
             "sequence": ["w2v-main", "sgd"],
-            "type":"binary"
+            "type":"binary",
+            "encoder": "w2v-main"
         },
 
         "pipelineB":{
             "name": "pipelineB",
             "sequence": ["w2v-main", "logreg"],
-            "type":"binary"
+            "type":"binary",
+            "encoder": "w2v-main"
         },
 
         "pipelineC":{
             "name": "pipelineC",
             "sequence": ["w2v-main", "decisiontree"],
-            "type":"binary"
+            "type":"binary",
+            "encoder": "w2v-main"
         },
 
         "pipelineD":{
             "name": "pipelineD",
             "sequence": ["w2v-main", "randforest"],
-            "type":"binary"
+            "type":"binary",
+            "encoder": "w2v-main"
         }
 
         
