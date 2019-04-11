@@ -677,6 +677,7 @@ class MLEPLearningServer():
             
             # 3. Then for each encoder, find k-closest model_save_path
             kClosestPerEncoder = {}
+            performances=[]
             for _encoder in encoderToModel:
                 kClosestPerEncoder[_encoder] = []
                 _encodedData = self.ENCODERS[_encoder].encode(data["text"])
@@ -706,6 +707,7 @@ class MLEPLearningServer():
                 kClosestPerEncoder[_encoder] = kClosestPerEncoder[_encoder][:k_val]
 
             # 4. Put them all together and sort on performance
+            # distance weighted performance
             kClosest = []
             for _encoder in kClosestPerEncoder:
                 kClosest+=kClosestPerEncoder[_encoder]
