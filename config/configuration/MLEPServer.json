@@ -138,11 +138,21 @@
 
         "pipelineE":{
             "name": "pipelineE",
-            "sequence": ["w2v-generic-5000", "sgd"],
+            "sequence": ["w2v-generic-20000", "sgd"],
             "type":"binary",
-            "encoder": "w2v-generic-5000",
+            "encoder": "w2v-generic-20000",
+            "valid":true
+        }, 
+
+        "pipelineF":{
+            "name": "pipelineF",
+            "sequence": ["w2v-generic-20000", "decisiontree"],
+            "type":"binary",
+            "encoder": "w2v-generic-20000",
             "valid":true
         }
+
+        
 
         
     }
