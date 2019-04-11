@@ -24,9 +24,10 @@ class MLEPLearningServer():
 
         self.config = self.load_json(PATH_TO_CONFIG_FILE)
         self.MLEPConfig = self.config["config"]
-        self.MLEPEncoders = self.config["encoders"]
         self.MLEPModels = self.config["models"]
-        self.MLEPPipelines = self.config["pipelines"]
+        self.MLEPPipelines = self.getValidPipelines()
+        self.MLEPEncoders = self.getValidEncoders()
+        
 
         """ This is the internal clock of the Server. Normally, this is time.time(). For this implementation, this is updated manually """
         self.overallTimer = None
@@ -79,6 +80,7 @@ class MLEPLearningServer():
         # This would normally be a set of hosted encoders. For local implementation, we have the encoders as a dict of encoder objects (TODO)
         std_flush("Setting up built-in encoders", readable_time())
         self.ENCODERS = {}
+        # TODO get list of valid encoders from valid pipelines
         self.setUpEncoders()
 
         # Setting of 'hosted' models + data cetroids
@@ -101,10 +103,18 @@ class MLEPLearningServer():
         self.TRAIN_MODELS = []
 
 
+    def getValidPipelines(self,):
+        """ get pipelines that are, well, valid """
+        return {item:self.config["pipelines"][item] for item in self.config["pipelines"] if self.config["pipelines"][item]["valid"]}
+
+    def getValidEncoders(self,):
+        """ get valid encoders """
+
+        # iterate through pipelines, get encoders that are valid, and return those from config->encoders
+        return {item:self.config["encoders"][item] for item in {self.MLEPPipelines[_item]["encoder"]:1 for _item in self.MLEPPipelines}}
 
     def setUpEncoders(self):
         """ This sets up built-in encoders. For now, this is all there is. Specifically, we only have pretrained Google News w2v """
-
         # Load Encoder configurations
         for encoders in self.MLEPEncoders:
             # For each encoder, load it first
@@ -118,6 +128,19 @@ class MLEPLearningServer():
 
             # Set up encoder(s)
             self.ENCODERS[currentEncoder["name"]] = encoderClass()
+            try:
+                self.ENCODERS[currentEncoder["name"]].setup(**self.MLEPEncoders[encoders]["args"])
+            except:
+                # Implement fail condition - if encoder set-up (with args fails, it may be lacking data to )
+                # This is the dumbest idea I have ever seen
+                # have a failCondition class within the encoder!!!!!
+                try:
+                    self.ENCODERS[currentEncoder["name"]].failCondition(**self.MLEPEncoders[encoders]["fail-args"])
+                    self.ENCODERS[currentEncoder["name"]].setup(**self.MLEPEncoders[encoders]["args"])
+                except:
+                    # Do something if encoder fails
+                    # Condition - if no pipeline remains (edge case, don't worry about it right now)
+                    pass
 
         
     def openDBConnection(self,):

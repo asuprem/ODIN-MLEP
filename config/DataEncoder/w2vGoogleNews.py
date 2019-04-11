@@ -4,6 +4,9 @@ class w2vGoogleNews(DataEncoder):
     """ Built-in encoder for Google w2v; limited to 100K most common words """
 
     def __init__(self,):
+        pass
+
+    def setup(self,):
         from gensim.models import KeyedVectors
         from gensim.utils import tokenize
         from numpy import zeros
@@ -11,6 +14,7 @@ class w2vGoogleNews(DataEncoder):
         self.zeros = zeros
         self.zero_v = self.zeros(shape=(300,))
         self.tokenize = tokenize
+
     def encode(self, data):
         """ data MUST be a string """
         tokens = list(self.tokenize(data))
