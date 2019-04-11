@@ -8,7 +8,6 @@ class bowEncoder(DataEncoder):
 
     def setup(self, modelFileName="bow.model"):
         from sklearn.externals import joblib
-        from sklearn.feature_extraction.text import CountVectorizer
         from sklearn.metrics.pairwise import cosine_similarity
         from numpy import squeeze, asarray
         
