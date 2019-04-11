@@ -38,3 +38,7 @@ class w2vGoogleNews(DataEncoder):
         for idx, sentence in enumerate(data):
             transformed_data[idx] = self.encode(sentence)
         return transformed_data
+
+    def failCondition(self,):
+        # no idea how to handle fail condition here
+        assert(1==2)
