@@ -76,8 +76,6 @@ class w2vGeneric(DataEncoder):
             wikipages = self.getWikipages(dimensionSize, seedName)
             
             import gensim
-            from scipy.sparse import csr_matrix
-            from gensim.utils import tokenize
             #get tokenized forms
             documents = [gensim.utils.simple_preprocess(item) for item in wikipages]
             model = gensim.models.Word2Vec(documents, size=300, window=10,min_count=2,workers=10)
