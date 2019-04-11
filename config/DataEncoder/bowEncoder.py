@@ -9,6 +9,12 @@ class bowEncoder(DataEncoder):
     def setup(self, modelFileName="bow.model"):
         from sklearn.externals import joblib
         from sklearn.feature_extraction.text import CountVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+        from numpy import squeeze, asarray
+        
+        self.squeeze =  squeeze
+        self.asarray = asarray
+        self.cosine_similarity = cosine_similarity
 
         modelFilePath = "config/Sources/" + modelFileName
         self.model = joblib.load(modelFilePath)
@@ -42,3 +48,12 @@ class bowEncoder(DataEncoder):
         return True        
 
         #self.transformed_data = vectorizer.transform(self.source_data['text'].values)
+
+    def getCentroid(self,data):
+        # Need all this fancy stuff because Vectorizer returns a matrix
+        return 1.0 - self.squeeze(self.asarray(data.mean(axis=0)))
+
+        #return data.mean(axis=0)
+
+    def getDistance(self, queryPoint, centroid):
+        return self.cosine_similarity(self.asarray(queryPoint.todense()), centroid.reshape(1,-1)).mean()

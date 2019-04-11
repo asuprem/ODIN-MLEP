@@ -330,7 +330,7 @@ class MLEPLearningServer():
 
         model = pipelineModelClass()
         X_train = self.ENCODERS[encoderName].batchEncode([item['text'] for item in data])
-        centroid = X_train.mean(axis=0)
+        centroid = self.ENCODERS[encoderName].getCentroid(X_train)
         y_train = [item['label'] for item in data]
 
         precision, recall, score = model.fit_and_test(X_train, y_train)
@@ -356,7 +356,7 @@ class MLEPLearningServer():
         model.clone(self.MODELS[modelSaveName])
 
         X_train = self.ENCODERS[encoderName].batchEncode([item['text'] for item in data])
-        centroid = X_train.mean(axis=0)
+        centroid = self.ENCODERS[encoderName].getCentroid(X_train)
         y_train = [item['label'] for item in data]
 
         precision, recall, score = model.update_and_test(X_train, y_train)
@@ -642,8 +642,11 @@ class MLEPLearningServer():
         # find top-k nearest centroids
         k_val = self.MLEPConfig["k-val"]
         # Basic optimization:
+        # for tests:    if False and k_val >= len(ensembleModelNames):
+        # regular       if k_val >= len(ensembleModelNames):
         if k_val >= len(ensembleModelNames):
-            #ensembleModelNames = [item for item in self.HISTORICAL]
+        
+            # ensembleModelNames = [item for item in self.HISTORICAL]
             # because we have a prelim ensembleModelNames!!!
             pass
         else:
@@ -684,7 +687,15 @@ class MLEPLearningServer():
                 #   NOTE --> We need to make sure item[0] (modelName)
                 #   NOTE --> item[1] : fscore
                 # Add additional check for whether modelName is in list of validModels (ensembleModelNames)
-                kClosestPerEncoder[_encoder]=[(np.linalg.norm(_encodedData-self.CENTROIDS[item[0]]), item[1], item[0]) for item in encoderToModel[_encoder] if item[0] in ensembleModelNamesValid]
+
+                # Use encoder specific distance metric
+                # But how to normalize results????? 
+                # So w2v cosine_similarity is between 0 and 1
+                # BUT, bow distance is, well, distance. It might be any value
+                # Allright, need to 
+                #pdb.set_trace()
+                #np.linalg.norm(_encodedData-self.CENTROIDS[item[0]])
+                kClosestPerEncoder[_encoder]=[(self.ENCODERS[_encoder].getDistance(_encodedData, self.CENTROIDS[item[0]]), item[1], item[0]) for item in encoderToModel[_encoder] if item[0] in ensembleModelNamesValid]
                 # Default sort on first param (norm); sort on distance - smallest to largest
                 # tup[0] --> norm
                 # tup[1] --> fscore

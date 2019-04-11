@@ -10,6 +10,15 @@ class w2vGoogleNews(DataEncoder):
         from gensim.models import KeyedVectors
         from gensim.utils import tokenize
         from numpy import zeros
+
+        from sklearn.metrics.pairwise import cosine_similarity
+        from numpy import squeeze, asarray
+        
+        self.squeeze =  squeeze
+        self.asarray = asarray
+        self.cosine_similarity = cosine_similarity
+
+
         self.model = KeyedVectors.load_word2vec_format('config/Sources/GoogleNews-vectors-negative300.bin', binary=True, unicode_errors='ignore', limit=100000)
         self.zeros = zeros
         self.zero_v = self.zeros(shape=(300,))
@@ -42,3 +51,10 @@ class w2vGoogleNews(DataEncoder):
     def failCondition(self,):
         # no idea how to handle fail condition here
         assert(1==2)
+
+    def getCentroid(self,data):
+        # Need all this fancy stuff because Vectorizer returns a matrix
+        return data.mean(axis=0)
+
+    def getDistance(self, queryPoint, centroid):
+        return 1.0 - self.cosine_similarity(queryPoint.reshape(1,-1), centroid.reshape(1,-1)).mean()

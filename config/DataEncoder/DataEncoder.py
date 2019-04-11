@@ -34,3 +34,14 @@ class DataEncoder():
             -- False: Encoder errors could not be fixed. This is a bad encoder and should be discarded
         """
         return False
+
+    def getCentroid(self, data):
+        """ get the centroid of a dataset encoded with this encoder """
+        """ assume input is an encoded version of the data, and the data has multiple dimensions -- makes life easier """
+
+        pass
+
+    def getDistance(self, queryPoint, centroid):
+        """ get encoder-specific distance between two data points. Normalized between 0 and 1, 0 is most similar. """
+
+        pass

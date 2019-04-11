@@ -138,9 +138,9 @@
 
         "pipelineE":{
             "name": "pipelineE",
-            "sequence": ["bowDefault", "sgd"],
+            "sequence": ["w2v-generic-5000", "sgd"],
             "type":"binary",
-            "encoder": "bowDefault",
+            "encoder": "w2v-generic-5000",
             "valid":true
         }
 

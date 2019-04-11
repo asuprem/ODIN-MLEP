@@ -23,6 +23,13 @@ class w2vGeneric(DataEncoder):
         from gensim.utils import tokenize
         from numpy import zeros
 
+        from sklearn.metrics.pairwise import cosine_similarity
+        from numpy import squeeze, asarray
+        
+        self.squeeze =  squeeze
+        self.asarray = asarray
+        self.cosine_similarity = cosine_similarity
+
         self.zeros = zeros
         self.zero_v = self.zeros(shape=(300,))
         self.tokenize = tokenize
@@ -78,6 +85,12 @@ class w2vGeneric(DataEncoder):
             model.save(modelSavePath)
             return True
 
+    def getCentroid(self,data):
+        # Need all this fancy stuff because Vectorizer returns a matrix
+        return data.mean(axis=0)
+
+    def getDistance(self, queryPoint, centroid):
+        return 1.0 - self.cosine_similarity(queryPoint.reshape(1,-1), centroid.reshape(1,-1)).mean()
 
 
     def getWikipages(self,dimensionSize, seed):
@@ -123,4 +136,4 @@ class w2vGeneric(DataEncoder):
                 wiki_data = pickle.load(wikipagesFileName)
                 listOfWikiPages = wiki_data[0]
                 listOfWikiTitles = wiki_data[1]
-        return listOfWikiPages)
+        return listOfWikiPages
