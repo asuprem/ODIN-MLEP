@@ -1,4 +1,3 @@
-
 import os, shutil
 import json, codecs
 import time
@@ -14,68 +13,24 @@ from sqlite3 import Error
 
 
 class MLEPLearningServer():
-    def __init__(self,PATH_TO_CONFIG_FILE):
-        # Converts np.array to TEXT when inserting
-        sqlite3.register_adapter(np.ndarray, adapt_array)
-        # Converts TEXT to np.array when selecting
-        sqlite3.register_converter("array", convert_array)
+    def __init__(self, PATH_TO_CONFIG_FILE):
+        """Initialize the learning server.
 
-        std_flush("Initializing")
-
-        self.config = self.load_json(PATH_TO_CONFIG_FILE)
-        self.MLEPConfig = self.config["config"]
-        self.MLEPModels = self.config["models"]
-        self.MLEPPipelines = self.getValidPipelines()
-        self.MLEPEncoders = self.getValidEncoders()
-        
-
-        """ This is the internal clock of the Server. Normally, this is time.time(). For this implementation, this is updated manually """
-        self.overallTimer = None
-        # Since model's are pushed by live time (instead of data time), we have a model timer as well
-        self.MLEPModelTimer = time.time()
-        """ This is the clock for scheduled Filter Generation. During this scheduled generation, existing filters are also updated. Not yet sure how, but this is in progress """
-        self.scheduledFilterGenerateUpdateTimer = 0
-        self.scheduledSchedule = 0
-        if "update_schedule" in self.MLEPConfig:
-            self.scheduledSchedule = self.MLEPConfig["update_schedule"]
-        else:
-            DAY_IN_MS = 86400000
-            self.scheduledSchedule =  86400000 * 30
-            del DAY_IN_MS
-
-        std_flush("Finished up timers at ", readable_time())
-        # For Drift based, models track their own 'drift'
-        # ------------------------------------------------------------------------------------
-
-
-        """ Set up storage directories """
-        self.SOURCE_DIR = './.MLEPServer'
-        self.setups = ['models', 'data', 'modelSerials', 'db']
-        self.DB_FILE = './.MLEPServer/db/MLEP.db'
-        self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
-        std_flush("Finished up path variables at ", readable_time())
-        
-        
-
-        try:
-            shutil.rmtree(self.SOURCE_DIR)
-        except Exception as e:
-            std_flush("Error deleting directory tree: ", str(e))
-        os.makedirs(self.SOURCE_DIR)
-        for directory in self.setups:
-            os.makedirs(os.path.join(self.SOURCE_DIR, directory))
-
-        std_flush("Finished setting up directory structure at", readable_time())
-
-        """ create scheduled file """
-        open(self.SCHEDULED_DATA_FILE, 'w').close()
-        std_flush("Created data file at", readable_time())
-
-        """ create Database Connections and perform initial setup """
-        self.DB_CONN = None
-        self.openDBConnection()
-        self.initializeDB()
-        std_flush("Initialized DB at ", readable_time())
+        PATH_TO_CONFIG_FILE -- [str] Path to the JSON configuration file.
+        """
+        std_flush("Initializing MLEP...")
+        self.configure_sqlite()
+        std_flush("\tFinished configuring SQLite at", readable_time())
+        self.load_config(PATH_TO_CONFIG_FILE)
+        std_flush("\tFinished loading JSON configuration file at", readable_time())
+        self.initialize_timers()
+        std_flush("\tFinished initializing timers at", readable_time())
+        self.setup_directory_structure()
+        std_flush("\tFinished setting up directory structure at", readable_time())
+        self.setup_db_connection()
+        std_flush("\tFinished setting up database connection at", readable_time())
+        self.initialize_db()
+        std_flush("\tFinished initializing database at", readable_time())
 
         # This would normally be a set of hosted encoders. For local implementation, we have the encoders as a dict of encoder objects (TODO)
         std_flush("Setting up built-in encoders", readable_time())
@@ -102,6 +57,86 @@ class MLEPLearningServer():
         # Just the initial models
         self.TRAIN_MODELS = []
 
+    def configure_sqlite(self):
+        """Configure SQLite to convert numpy arrays to TEXT when INSERTing, and TEXT back to numpy
+        arrays when SELECTing."""
+        sqlite3.register_adapter(np.ndarray, adapt_array)
+        sqlite3.register_converter("array", convert_array)
+
+    def load_config(self, config_path):
+        """Load JSON configuration file and initialize attributes.
+
+        config_path -- [str] Path to the JSON configuration file.
+        """
+        self.config = self.load_json(config_path)
+        self.MLEPConfig = self.config["config"]
+        self.MLEPModels = self.config["models"]
+        self.MLEPPipelines = self.getValidPipelines()
+        self.MLEPEncoders = self.getValidEncoders()
+
+    def initialize_timers(self):
+        """Initialize time attributes."""
+        # Internal clock of the server.
+        self.overallTimer = None
+        # Internal clock of the models.
+        self.MLEPModelTimer = time.time()
+        # Clock used to schedule filter generation and update.
+        self.scheduledFilterGenerateUpdateTimer = 0
+        # Schedule filter generation and update as defined in the configuration file or every 30
+        # days.
+        self.scheduledSchedule = self.MLEPConfig.get("update_schedule", 86400000 * 30)
+
+    def setup_directory_structure(self):
+        """Set up directory structure."""
+        self.SOURCE_DIR = "./.MLEPServer"
+        self.setups = ['models', 'data', 'modelSerials', 'db']
+        self.DB_FILE = './.MLEPServer/db/MLEP.db'
+        self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
+        # Remove SOURCE_DIR if it already exists.
+        try:
+            shutil.rmtree(self.SOURCE_DIR)
+        except Exception as e:
+            std_flush("Error deleting directory tree: ", str(e))
+        # Make directory tree.
+        os.makedirs(self.SOURCE_DIR)
+        for directory in self.setups:
+            os.makedirs(os.path.join(self.SOURCE_DIR, directory))
+        # Create scheduled file.
+        open(self.SCHEDULED_DATA_FILE, 'w').close()
+
+    def setup_db_connection(self):
+        """Set up connection to a SQLite database."""
+        self.DB_CONN = None
+        try:
+            self.DB_CONN = sqlite3.connect(self.DB_FILE, detect_types=sqlite3.PARSE_DECLTYPES)
+        except Error as e:
+            print(e)
+
+    def initialize_db(self):
+        """Create tables in a SQLite database."""
+        cursor = self.DB_CONN.cursor()
+        cursor.execute("""Drop Table IF EXISTS Models""")
+        cursor.execute("""
+            CREATE TABLE Models(
+                modelid         text,
+                parentmodel     text,
+                pipelineName    text,
+                timestamp       real,
+                data_centroid   array,
+                trainingModel   text,
+                trainingData    text,
+                testData        text,
+                precision       real,
+                recall          real,
+                fscore          real,
+                type            text,
+                active          integer,
+                PRIMARY KEY(modelid),
+                FOREIGN KEY(parentmodel) REFERENCES Models(trainingModel)
+            )
+        """)
+        self.DB_CONN.commit()
+        cursor.close()
 
     def getValidPipelines(self,):
         """ get pipelines that are, well, valid """
@@ -142,16 +177,6 @@ class MLEPLearningServer():
                     # Condition - if no pipeline remains (edge case, don't worry about it right now)
                     pass
 
-        
-    def openDBConnection(self,):
-        """ create a database connection to a SQLite database """
-        try:
-            #self.DB_CONN = sqlite3.connect("file::memory:?cache=shared", detect_types=sqlite3.PARSE_DECLTYPES)
-            self.DB_CONN = sqlite3.connect(self.DB_FILE, detect_types=sqlite3.PARSE_DECLTYPES)
-            #print(sqlite3.version)
-        except Error as e:
-            print(e)
-
     def shutdown(self):
         # save models - because they are all heald in memory??
         # Access the save path
@@ -168,30 +193,6 @@ class MLEPLearningServer():
             self.DB_CONN.close()
         except:
             pass
-    
-    def initializeDB(self):
-        """ Initialize tables in database """
-        # Initialize Model table
-        cursor = self.DB_CONN.cursor()
-        cursor.execute("""Drop Table IF EXISTS Models;""")
-        cursor.execute("""CREATE TABLE Models
-                                (   modelid         text,
-                                    parentmodel     text,
-                                    pipelineName    text, 
-                                    timestamp       real,
-                                    data_centroid   array,
-                                    trainingModel   text,
-                                    trainingData    text,
-                                    testData        text,
-                                    precision       real,
-                                    recall          real,
-                                    fscore          real,
-                                    type            text,
-                                    active          integer,
-                                    PRIMARY KEY(modelid),
-                                    FOREIGN KEY(parentmodel) REFERENCES Models(trainingModel))""")
-        self.DB_CONN.commit()
-        cursor.close()
     
     def updateTime(self,timerVal):
         """ Manually updating time for experimental evaluation """
