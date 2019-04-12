@@ -19,8 +19,14 @@ def readable_time(format="%M:%S"):
     """
     return datetime.datetime.fromtimestamp(time.time()).strftime(format)
 
-def ms_to_readable(ms):
-    return datetime.datetime.fromtimestamp(ms/1000).strftime('%Y-%m-%d %H:%M:%S')
+def ms_to_readable(ms, format="%Y-%m-%d %H:%M:%S"):
+    """Return a string representing the specified timestamp in milliseconds, controlled by an
+    explicit format string.
+
+    ms -- [int] Timestamp in milliseconds to be formatted.
+    format -- [str] Format string.
+    """
+    return datetime.datetime.fromtimestamp(ms / 1000).strftime(format)
 
 def time_to_id(ms=None, lval = 5):
     DICTA={str(idx):item for idx,item in enumerate("abcdefghij")}
