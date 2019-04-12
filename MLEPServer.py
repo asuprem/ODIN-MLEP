@@ -19,24 +19,34 @@ class MLEPLearningServer():
         PATH_TO_CONFIG_FILE -- [str] Path to the JSON configuration file.
         """
         std_flush("Initializing MLEP...")
+
+        std_flush("\tStarted configuring SQLite at", readable_time())
         self.configure_sqlite()
         std_flush("\tFinished configuring SQLite at", readable_time())
+
+        std_flush("\tStarted loading JSON configuration file at", readable_time())
         self.load_config(PATH_TO_CONFIG_FILE)
         std_flush("\tFinished loading JSON configuration file at", readable_time())
+
+        std_flush("\tStarted initializing timers at", readable_time())
         self.initialize_timers()
         std_flush("\tFinished initializing timers at", readable_time())
+
+        std_flush("\tStarted setting up directory structure at", readable_time())
         self.setup_directory_structure()
         std_flush("\tFinished setting up directory structure at", readable_time())
+
+        std_flush("\tStarted setting up database connection at", readable_time())
         self.setup_db_connection()
         std_flush("\tFinished setting up database connection at", readable_time())
+
+        std_flush("\tStarted initializing database at", readable_time())
         self.initialize_db()
         std_flush("\tFinished initializing database at", readable_time())
-
-        # This would normally be a set of hosted encoders. For local implementation, we have the encoders as a dict of encoder objects (TODO)
-        std_flush("Setting up built-in encoders", readable_time())
-        self.ENCODERS = {}
-        # TODO get list of valid encoders from valid pipelines
-        self.setUpEncoders()
+        
+        std_flush("\tStarted setting up encoders at", readable_time())
+        self.set_up_encoders()
+        std_flush("\tFinished setting up encoders at", readable_time())
 
         # Setting of 'hosted' models + data cetroids
         self.MODELS = {}
@@ -138,6 +148,27 @@ class MLEPLearningServer():
         self.DB_CONN.commit()
         cursor.close()
 
+    def set_up_encoders(self):
+        """Set up built-in encoders (Google News w2v)."""
+        self.ENCODERS = {}
+        for encoder_type, encoder_config in self.MLEPEncoders.items():
+            std_flush("\t\tSetting up encoder", encoder_config["name"], "at", readable_time())
+            encoderName = encoder_config["scriptName"]
+            encoderModule = __import__("config.DataEncoder.%s" % encoderName,
+                    fromlist=[encoderName])
+            encoderClass = getattr(encoderModule, encoderName)
+            self.ENCODERS[encoder_config["name"]] = encoderClass()
+            try:
+                self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])
+            except:
+                try:
+                    self.ENCODERS[encoder_config["name"]].failCondition(
+                            **encoder_config["fail-args"])
+                    self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])
+                except:
+                    std_flush("\t\tFailed setting up encoder", encoder_config["name"])
+                    pass
+
     def getValidPipelines(self,):
         """ get pipelines that are, well, valid """
         return {item:self.config["pipelines"][item] for item in self.config["pipelines"] if self.config["pipelines"][item]["valid"]}
@@ -147,35 +178,6 @@ class MLEPLearningServer():
 
         # iterate through pipelines, get encoders that are valid, and return those from config->encoders
         return {item:self.config["encoders"][item] for item in {self.MLEPPipelines[_item]["encoder"]:1 for _item in self.MLEPPipelines}}
-
-    def setUpEncoders(self):
-        """ This sets up built-in encoders. For now, this is all there is. Specifically, we only have pretrained Google News w2v """
-        # Load Encoder configurations
-        for encoders in self.MLEPEncoders:
-            # For each encoder, load it first
-            currentEncoder = self.MLEPEncoders[encoders]
-
-            std_flush("Setting up", currentEncoder["name"], "at", readable_time())
-            
-            encoderName = currentEncoder["scriptName"]
-            encoderModule = __import__("config.DataEncoder.%s"%encoderName, fromlist=[encoderName])
-            encoderClass = getattr(encoderModule,encoderName)
-
-            # Set up encoder(s)
-            self.ENCODERS[currentEncoder["name"]] = encoderClass()
-            try:
-                self.ENCODERS[currentEncoder["name"]].setup(**self.MLEPEncoders[encoders]["args"])
-            except:
-                # Implement fail condition - if encoder set-up (with args fails, it may be lacking data to )
-                # This is the dumbest idea I have ever seen
-                # have a failCondition class within the encoder!!!!!
-                try:
-                    self.ENCODERS[currentEncoder["name"]].failCondition(**self.MLEPEncoders[encoders]["fail-args"])
-                    self.ENCODERS[currentEncoder["name"]].setup(**self.MLEPEncoders[encoders]["args"])
-                except:
-                    # Do something if encoder fails
-                    # Condition - if no pipeline remains (edge case, don't worry about it right now)
-                    pass
 
     def shutdown(self):
         # save models - because they are all heald in memory??
