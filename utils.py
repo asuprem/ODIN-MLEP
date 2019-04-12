@@ -12,9 +12,12 @@ def std_flush(*args, **kwargs):
     print(" ".join(map(str, args)))
     sys.stdout.flush()
 
-def readable_time():
-    #return datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-    return datetime.datetime.fromtimestamp(time.time()).strftime('%M:%S')
+def readable_time(format="%M:%S"):
+    """Return a string representing the current time, controlled by an explicit format string.
+
+    format -- [str] Format string.
+    """
+    return datetime.datetime.fromtimestamp(time.time()).strftime(format)
 
 def ms_to_readable(ms):
     return datetime.datetime.fromtimestamp(ms/1000).strftime('%Y-%m-%d %H:%M:%S')
