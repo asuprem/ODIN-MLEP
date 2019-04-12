@@ -21,31 +21,31 @@ class MLEPLearningServer():
         std_flush("Initializing MLEP...")
 
         std_flush("\tStarted configuring SQLite at", readable_time())
-        self.configure_sqlite()
+        self.configureSqlite()
         std_flush("\tFinished configuring SQLite at", readable_time())
 
         std_flush("\tStarted loading JSON configuration file at", readable_time())
-        self.load_config(PATH_TO_CONFIG_FILE)
+        self.loadConfig(PATH_TO_CONFIG_FILE)
         std_flush("\tFinished loading JSON configuration file at", readable_time())
 
         std_flush("\tStarted initializing timers at", readable_time())
-        self.initialize_timers()
+        self.initializeTimers()
         std_flush("\tFinished initializing timers at", readable_time())
 
         std_flush("\tStarted setting up directory structure at", readable_time())
-        self.setup_directory_structure()
+        self.setupDirectoryStructure()
         std_flush("\tFinished setting up directory structure at", readable_time())
 
         std_flush("\tStarted setting up database connection at", readable_time())
-        self.setup_db_connection()
+        self.setupDbConnection()
         std_flush("\tFinished setting up database connection at", readable_time())
 
         std_flush("\tStarted initializing database at", readable_time())
-        self.initialize_db()
+        self.initializeDb()
         std_flush("\tFinished initializing database at", readable_time())
         
         std_flush("\tStarted setting up encoders at", readable_time())
-        self.set_up_encoders()
+        self.setUpEncoders()
         std_flush("\tFinished setting up encoders at", readable_time())
 
         # Setting of 'hosted' models + data cetroids
@@ -67,13 +67,13 @@ class MLEPLearningServer():
         # Just the initial models
         self.TRAIN_MODELS = []
 
-    def configure_sqlite(self):
+    def configureSqlite(self):
         """Configure SQLite to convert numpy arrays to TEXT when INSERTing, and TEXT back to numpy
         arrays when SELECTing."""
         sqlite3.register_adapter(np.ndarray, adapt_array)
         sqlite3.register_converter("array", convert_array)
 
-    def load_config(self, config_path):
+    def loadConfig(self, config_path):
         """Load JSON configuration file and initialize attributes.
 
         config_path -- [str] Path to the JSON configuration file.
@@ -84,7 +84,7 @@ class MLEPLearningServer():
         self.MLEPPipelines = self.getValidPipelines()
         self.MLEPEncoders = self.getValidEncoders()
 
-    def initialize_timers(self):
+    def initializeTimers(self):
         """Initialize time attributes."""
         # Internal clock of the server.
         self.overallTimer = None
@@ -96,7 +96,7 @@ class MLEPLearningServer():
         # days.
         self.scheduledSchedule = self.MLEPConfig.get("update_schedule", 86400000 * 30)
 
-    def setup_directory_structure(self):
+    def setupDirectoryStructure(self):
         """Set up directory structure."""
         self.SOURCE_DIR = "./.MLEPServer"
         self.setups = ['models', 'data', 'modelSerials', 'db']
@@ -114,7 +114,7 @@ class MLEPLearningServer():
         # Create scheduled file.
         open(self.SCHEDULED_DATA_FILE, 'w').close()
 
-    def setup_db_connection(self):
+    def setupDbConnection(self):
         """Set up connection to a SQLite database."""
         self.DB_CONN = None
         try:
@@ -122,7 +122,7 @@ class MLEPLearningServer():
         except Error as e:
             print(e)
 
-    def initialize_db(self):
+    def initializeDb(self):
         """Create tables in a SQLite database."""
         cursor = self.DB_CONN.cursor()
         cursor.execute("""Drop Table IF EXISTS Models""")
@@ -148,7 +148,7 @@ class MLEPLearningServer():
         self.DB_CONN.commit()
         cursor.close()
 
-    def set_up_encoders(self):
+    def setUpEncoders(self):
         """Set up built-in encoders (Google News w2v)."""
         self.ENCODERS = {}
         for encoder_type, encoder_config in self.MLEPEncoders.items():
