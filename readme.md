@@ -1,9 +1,33 @@
-# MLEP ( In progress)
+# MLEP (In Progress)
 
-# Execution
-Use requirements.txt to create virtual environment
+# Quick start
+## Creating a Python Virtual Environment
+The main purpose of using a Python virtual environment is to create an isolated environment for
+MLEP. This means that it can separately install its own dependencies, regardless of what package
+versions are installed in your system.
 
-    $ (venv) python application.py
+Create a new Python virtual environment in directory `.env`:
+```console
+$ python3 -m venv .env
+```
+
+Now we need to activate the newly created virtual environment, setting up your shell to use it by
+default:
+```console
+$ source .env/bin/activate
+```
+
+Later, you can deactivate it running:
+```console
+(.env) $ deactivate
+```
+
+## Installing Dependencies in the Python Virtual Environment
+All dependencies for MLEP are declared in the file `requirements.txt`. To get started, install these
+dependencies running:
+```console
+(.env) $ pip install -r requirements.txt
+```
 
 # Details
 
