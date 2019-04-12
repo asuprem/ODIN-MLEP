@@ -1,21 +1,23 @@
-import sys, pdb, json, codecs
-from datetime import datetime
-import time
-import sqlite3
-import numpy as np
+import codecs
+import datetime
 import io
+import json
+import numpy as np
+import sqlite3
+import sys
+import time
 
-
-def std_flush(*args,**kwargs):
-    print(" ".join(map(str,args)))
+def std_flush(*args, **kwargs):
+    """Write a space-separated tuple of arguments to the standard output and flush its buffers."""
+    print(" ".join(map(str, args)))
     sys.stdout.flush()
 
 def readable_time():
     #return datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-    return datetime.fromtimestamp(time.time()).strftime('%M:%S')
+    return datetime.datetime.fromtimestamp(time.time()).strftime('%M:%S')
 
 def ms_to_readable(ms):
-    return datetime.fromtimestamp(ms/1000).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.datetime.fromtimestamp(ms/1000).strftime('%Y-%m-%d %H:%M:%S')
 
 def time_to_id(ms=None, lval = 5):
     DICTA={str(idx):item for idx,item in enumerate("abcdefghij")}
@@ -25,8 +27,8 @@ def time_to_id(ms=None, lval = 5):
     ms_str = ms_str[:-(lval+1)]+ms_str[-lval:]
     return ''.join([DICTA[item] for item in ms_str])
 
-
 def adapt_array(arr):
+    # [RODRIGO]: Pushing numpy array to sqlite (conversion).
     """
     http://stackoverflow.com/a/31312102/190597 (SoulNibbler)
     """
@@ -36,6 +38,7 @@ def adapt_array(arr):
     return sqlite3.Binary(out.read())
 
 def convert_array(text):
+    # [RODRIGO]: Pushing numpy array to sqlite (conversion).
     out = io.BytesIO(text)
     out.seek(0)
     return np.load(out)
