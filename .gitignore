@@ -1,3 +1,4 @@
+*.pyc
 data/archive/*
 data/*.json
 data/online/
