@@ -4,9 +4,6 @@
         "weight_method":"unweighted",
         "select_method":"train",
         "filter_select":"no-filter",
-        "other_weight_method":"performance, unweighted",
-        "other_select_methods":"recent-update, nearest, recent, recent-new, historical, historical-new, historical-update, train",
-        "other_filter_select":"no-filter, nearest, top-k",
         "k-val": 5
         
     },
