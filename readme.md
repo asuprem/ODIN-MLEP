@@ -2,11 +2,12 @@
 MLEP is a Machine Learning Event Processor. It is a system to perform event detection in drifting
 data.
 
-[RODRIGO: Suggestion -- WHAT IS DRIFTING DATA?]
-[RODRIGO: Suggestion -- WHAT IS DRIFTING ADAPTIVITY?]
-[RODRIGO: Suggestion -- WHAT IS A PIPELINE IN THIS CONTEXT?]
-
 Here we describe execution, implementation, and data exploration for MLEP.
+
+## Division of work
+Basically, Abhijit wrote the MLEP server (front-end interface) and drift-adaptive section on top of
+the learning models developed by Rodrigo (back-end interface under `config/`). Right now, we are
+both working on improving code modularity, documentation, and testing.
 
 ## Current release
 
@@ -41,6 +42,10 @@ dependencies running:
 (.env) $ pip install -r requirements.txt
 ```
 
+### Testing
+Unit tests are (still) being written and merged to the repo.
+* `utils_tests.py`
+
 ### Downloading Support Files
 MLEP is designed to work out-of-the-box in most scenarios. However, there are some built-in files
 you may need to download:
@@ -55,8 +60,7 @@ by a word2vec encoder. We have provided a default version
 [here](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit). You will need to extract
 the file with extension `.bin` and move in into `./config/Sources/`. Also, rename it to
 `GoogleNews-vectors-negative300.bin`.
-* word2vec (Wikipedia): [RODRIGO: Lack of understanding -- NOT CLEAR]
-You must download a file containing a list of Wikipedia titles to be used by a word2vec encoder from
+* word2vec (Wikipedia): You must download a file containing a list of Wikipedia titles to be used by a word2vec encoder from
 [here](https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-all-titles-in-ns0.gz). You will need
 to extract the archive and move this file into `./config/RawSources/`. Also, rename it to
 `enwiki-latest-all-titles-in-ns0`. To speed up the encoder generation, we have provided additional
@@ -75,8 +79,7 @@ Wikipedia corpus (`w2vGeneric` encoder class).
 ### Configuration
 The default configuration file is located at `./config/configuration/MLEPServer.json`. Details are
 described in the `Configuration Files` section. You may add new pipelines to this file to test drift
-adaptivity [RODRIGO: Lack of understanding -- WHAT ARE PIPELINES? WHAT IS DRIFT? WHAT IS DRIFT
-ADAPTIVITY? HOW?]
+adaptivity.
 
 ### Execution (script)
 
