@@ -138,7 +138,7 @@
             "sequence": ["w2v-generic-20000", "sgd"],
             "type":"binary",
             "encoder": "w2v-generic-20000",
-            "valid":true
+            "valid":false
         }, 
 
         "pipelineF":{
@@ -146,6 +146,14 @@
             "sequence": ["w2v-generic-20000", "decisiontree"],
             "type":"binary",
             "encoder": "w2v-generic-20000",
+            "valid":false
+        }, 
+
+        "pipelineG":{
+            "name": "pipelineG",
+            "sequence": ["bowDefault", "decisiontree"],
+            "type":"binary",
+            "encoder": "bowDefault",
             "valid":true
         }
 

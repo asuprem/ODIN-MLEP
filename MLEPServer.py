@@ -228,6 +228,7 @@ class MLEPLearningServer():
                     scheduledTrainingData = self.getScheduledTrainingData()
                     
                     # Scheduled Generate
+                    # TODO -- set up 
                     self.train(scheduledTrainingData)
                     std_flush("Completed Scheduled Model generation at", readable_time())
 
@@ -279,6 +280,9 @@ class MLEPLearningServer():
 
     def getScheduledTrainingData(self):
         """ Get the data in self.SCHEDULED_DATA_FILE """
+
+        # need to load it as  BatchedModel...
+        # (So, first scheduledDataFile needs to save stuff as BatchedModel...)
         import random
         scheduledTrainingData = []
         scheduledNegativeData = []
@@ -318,6 +322,7 @@ class MLEPLearningServer():
                 
         return scheduledTrainingData
 
+    # data is BatchedLocal
     def generatePipeline(self,data, pipeline):
         """ Generate a model using provided pipeline """
         
@@ -330,11 +335,11 @@ class MLEPLearningServer():
         pipelineModelName = self.MLEPModels[pipelineModel]["scriptName"]
         pipelineModelModule = __import__("config.LearningModel.%s"%pipelineModelName, fromlist=[pipelineModelName])
         pipelineModelClass = getattr(pipelineModelModule,pipelineModelName)
-
+        # data is a BatchedLocal
         model = pipelineModelClass()
-        X_train = self.ENCODERS[encoderName].batchEncode([item['text'] for item in data])
+        X_train = self.ENCODERS[encoderName].batchEncode(data.getData())
         centroid = self.ENCODERS[encoderName].getCentroid(X_train)
-        y_train = [item['label'] for item in data]
+        y_train = data.getLabels()
 
         precision, recall, score = model.fit_and_test(X_train, y_train)
 
@@ -431,13 +436,12 @@ class MLEPLearningServer():
             self.DB_CONN.commit()
             cursor.close()
 
-
+    # trainData is BatchedLocal
     def initialTrain(self,traindata,models= "all"):
-
         self.setUpInitialModels(traindata)
         self.TRAIN_MODELS = self.getModelsSince()
 
-
+    # trainData is BatchedLocal
     def setUpInitialModels(self,traindata, models = 'all'):
         """ This is a function for initial training. Separated while working on data model. Will probably be recombined with self.train function later """
         # for each modelType in modelTypes
@@ -462,8 +466,10 @@ class MLEPLearningServer():
 
             #std_flush("Setting up", currentEncoder["name"], "at", readable_time())
             
+            # trainData is a DataModel (in our case, a BatchedLocal)
             # set up pipeline
             currentPipeline = self.MLEPPipelines[pipeline]
+            # trainData is BatchedLocal
             precision, recall, score, pipelineTrained, data_centroid = self.generatePipeline(traindata, currentPipeline)
             timestamp = time.time()
             modelIdentifier = self.createModelId(timestamp, pipelineTrained,score) 
@@ -884,12 +890,19 @@ class MLEPPredictionServer():
 
     def classify(self,data, MLEPLearner):
         # sve data item to scheduledDataFile
+        """
+        TODO predictor should get access to which DataModel approach to use to save the data...
+
+        """
+
+        """
         try:
+            pdb.set_trace()
             self.SCHEDULED_DATA_FILE_OPERATOR.write(json.dumps(data)+'\n')
         except:
             self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
             self.SCHEDULED_DATA_FILE_OPERATOR.write(json.dumps(data)+'\n')
-
+        """
         return MLEPLearner.classify(data)
             
 

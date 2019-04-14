@@ -1,7 +1,7 @@
 from DataModel import DataModel
 
-class BatchedLocal(DataModel):
-    """ BatchedLocal model loads the batchedlocal file"""
+class StreamLocal(DataModel):
+    """ StreamLocal model. Simulates streaming data"""
     
     def __init__(self, data_source=None, data_mode=None, num_samples="all", data_set_class=None):
         """
@@ -30,20 +30,33 @@ class BatchedLocal(DataModel):
             with open(data_source,"r") as data_source_file:
                 for line in data_source_file:
                     self.data.append(data_set_class(line))
+        self.idx=0
 
         # so self.data is a list of [data_set_class(), data_set_class()...]  
 
-
+    """ TODO make this an iterator format. Also learn aboout iteratoro formars :/"""
     def getData(self,):
-        return [dataItem.getData() for dataItem in self.data]
+        return self.data_
 
-    def getLabels(self,):
-        return [dataItem.getLabel() for dataItem in self.data]
+    def getLabel(self,):
+        return self.label_
 
-    def getObjects(self,):
-        return self.data
+    def getObject(self,):
+        return self.object_
+        
+    def next(self,):
+        try:
+            self.data_ = self.data[self.idx].getData()
+            self.label_ = self.data[self.idx].getLabel()
+            self.object_ = self.data[self.idx]
+            self.idx+=1
+            return True
+        except:
+            return False
+        
 
-
+    
+    
     def getNextBatchData(self,):
         raise NotImplementedError()
 
