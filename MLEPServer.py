@@ -434,9 +434,77 @@ class MLEPLearningServer():
 
     def initialTrain(self,traindata,models= "all"):
 
-        self.train(traindata)
+        self.setUpInitialModels(traindata)
         self.TRAIN_MODELS = self.getModelsSince()
 
+
+    def setUpInitialModels(self,traindata, models = 'all'):
+        """ This is a function for initial training. Separated while working on data model. Will probably be recombined with self.train function later """
+        # for each modelType in modelTypes
+        #   for each encodingType (just 1)
+        #       Create sklearn model using default details
+        #       then train sklearn model using encoded data
+        #       precision, recall, score, model = self.generate(encoder, traindata, model)
+        #       push details to ModelDB
+        #       save model to file using ID as filename.model -- serialized sklearn model
+        
+        
+
+        # First load the Model configurations - identify what models exist
+        
+        for pipeline in self.MLEPPipelines:
+            
+            
+            # We make the simplified assumption that all encoders are the same (pretrained w2v). 
+            # So we don't have to handle pipeline families at this point for the distance function (if implemented)
+            # Also, since our models are small-ish, we can make do by hosting models in memory
+            # Production implementation (and going forward), models would be hosted as an API endpoint until "retirement"
+
+            #std_flush("Setting up", currentEncoder["name"], "at", readable_time())
+            
+            # set up pipeline
+            currentPipeline = self.MLEPPipelines[pipeline]
+            precision, recall, score, pipelineTrained, data_centroid = self.generatePipeline(traindata, currentPipeline)
+            timestamp = time.time()
+            modelIdentifier = self.createModelId(timestamp, pipelineTrained,score) 
+            modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
+            trainDataSavePath = ""
+            testDataSavePath = ""
+
+            # save the model (i.e. host it)
+            self.MODELS[modelSavePath] = pipelineTrained
+            # Because we are simplifying this implementation, we don't actually have pipeline families. Every pipelien is part of the w2v family
+            # So we can actually just store data_centroids locally
+            self.CENTROIDS[modelSavePath] = data_centroid
+            del pipelineTrained
+            # Now we save deets.
+            # Some cleaning
+            
+            columns=",".join([  "modelid","parentmodel","pipelineName","timestamp","data_centroid",
+                                "trainingModel","trainingData","testData",
+                                "precision","recall","fscore",
+                                "type","active"])
+            
+            sql = "INSERT INTO Models (%s) VALUES " % columns
+            sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?)"
+            cursor = self.DB_CONN.cursor()
+            
+            cursor.execute(sql, (   modelIdentifier,
+                                    None,
+                                    str(currentPipeline["name"]), 
+                                    timestamp,
+                                    data_centroid,
+                                    str(modelSavePath),
+                                    str(trainDataSavePath),
+                                    str(testDataSavePath),
+                                    precision,
+                                    recall,
+                                    score,
+                                    str(currentPipeline["type"]),
+                                    1))
+            
+            self.DB_CONN.commit()
+            cursor.close()
 
     def train(self,traindata, models = 'all'):
         # for each modelType in modelTypes
