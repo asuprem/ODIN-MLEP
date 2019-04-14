@@ -705,7 +705,11 @@ class MLEPLearningServer():
                 # tup[1] --> fscore
                 # tup[2] --> modelName
                 # Sorting by tup[0] --> norm
-                kClosestPerEncoder[_encoder].sort(key=lambda tup:tup[0], )
+                # TODO normalize distance to 0:1
+                # Need to do this during centroid construction
+                # for the training data, in addition to storing centroid, store furthest data point distance
+                # Then during distance getting, we compare the distance to max_distance in getDistance() and return a 0-1 normalized. Anything outside max_distance is floored to 1.
+                kClosestPerEncoder[_encoder].sort(key=lambda tup:tup[0])
                 # Truncate to top-k
                 kClosestPerEncoder[_encoder] = kClosestPerEncoder[_encoder][:k_val]
 
