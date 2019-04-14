@@ -4,6 +4,9 @@ from MLEPServer import MLEPLearningServer, MLEPPredictionServer
 from utils import std_flush, readable_time, load_json
 import click
 
+from config.DataModel.BatchedLocal import BatchedLocal
+from config.DataSet.PseudoJsonTweets import PseudoJsonTweets
+
 """
 Arguments
 
@@ -58,11 +61,14 @@ def main(experimentname, update, weights, select, filter, kval):
         for line in data_file:
             negatives.append(json.loads(line.strip()))
     
-    trainingData = []
-    with open('data/data/initialTrainingData.json','r') as data_file:
-        for line in data_file:
-            trainingData.append(json.loads(line.strip()))
+    trainingData = BatchedLocal(data_source='data/data/initialTrainingData.json', data_mode="collected", data_set_class=PseudoJsonTweets)
 
+    """
+    BatchedLocal.getData() --> return list of DataSet objects
+    BatchedLocal.getLabels()
+
+    """
+    
 
     # Let's consider three data delivery models:
     #   - Batched
