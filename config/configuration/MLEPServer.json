@@ -1,5 +1,10 @@
 {
     "config":{
+        "allow_update_schedule": false,
+        "allow_update_drift": true,
+        "drift_class":"LabeledDriftDetector",
+        "drift_mode":"DDM",
+        
         "update_schedule":2592000000,
         "weight_method":"unweighted",
         "select_method":"train",

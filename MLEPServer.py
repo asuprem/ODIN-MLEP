@@ -6,7 +6,8 @@ import pdb
 
 from utils import std_flush, ms_to_readable, time_to_id, adapt_array, convert_array, readable_time
 
-from config.LabeledDriftDetector import DDM, EDDM, PageHinkley
+from config.DriftDetector.LabeledDriftDetector import DDM, EDDM, PageHinkley
+from config.DriftDetector.EnsembleDriftDetector import EnsembleDisagreement
 
 import numpy as np
 
@@ -75,13 +76,32 @@ class MLEPLearningServer():
         self.ERRORS = []
 
         # TODO -- update config to let users select drift detectors
+        std_flush("\tStarted setting up drift tracker at", readable_time())
+        self.setUpDriftTracker()
+        std_flush("\tFinished setting up drift tracker at", readable_time())
+
+        pipelineModelName = self.MLEPModels[pipelineModel]["scriptName"]
+        pipelineModelModule = __import__("config.LearningModel.%s"%pipelineModelName, fromlist=[pipelineModelName])
+        pipelineModelClass = getattr(pipelineModelModule,pipelineModelName)
+        # data is a BatchedLocal
+        model = pipelineModelClass()
+
         self.LABELED_DRIFT_DETECTORS = {}
         self.LABELED_DRIFT_DETECTORS["DDM"] = DDM.DDM()
         self.LABELED_DRIFT_DETECTORS["EDDM"] = EDDM.EDDM()
         self.LABELED_DRIFT_DETECTORS["PH"] = PageHinkley.PageHinkley()
 
         self.ENSEMBLE_DRIFT_DETECTORS = {}
+        self.ENSEMBLE_DRIFT_DETECTORS["EnsDisagree"] = EnsembleDisagreement.EnsembleDisagreement()
 
+
+    def setUpDriftTracker(self,):
+        driftTracker = self.MLEPConfig["drift_mode"]
+        driftModule = self.MLEPConfig["drift_class"]
+        driftArgs = self.MLEPConfig["drift_args"] if "drift_args" in self.MLEPConfig else {}
+        driftModuleImport = __import__("config.DriftDetector.%s.%s"%(driftModule, driftTracker), fromlist=[driftTracker])
+        driftTrackerClass = getattr(driftModuleImport,driftTracker)
+        self.DRIFT_TRACKER = driftTrackerClass(**driftArgs)
 
 
     def configureSqlite(self):
@@ -218,6 +238,10 @@ class MLEPLearningServer():
 
         self.overallTimer = timerVal
         
+        # check if we are allowed to update -- .
+        if not self.MLEPConfig["allow_update_schedule"]:
+            return
+    
         # Check scheduled time difference if there need to be updates
         if abs(self.overallTimer - self.scheduledFilterGenerateUpdateTimer) > self.scheduledSchedule:
             if not os.path.exists(self.SCHEDULED_DATA_FILE):
@@ -918,6 +942,18 @@ class MLEPLearningServer():
             error = 0
         ensembleError = [(1 if score != data.getLabel() else 0) for score in ensembleRaw]
 
+
+        # perform drift detection and update:
+        #if not self.MLEPConfig["allow_update_drift"]:
+        #    return classification
+
+        #if self.MLEPConfig["drift_class"] == "LabeledDriftDetector":
+            #
+
+        
+
+
+
         # Standard Drift detect using errors
         for driftDetector in self.LABELED_DRIFT_DETECTORS:
             if driftDetector == "PH":
@@ -927,13 +963,16 @@ class MLEPLearningServer():
             if detected:
                 std_flush(driftDetector, "has detected drift at", len(self.ERRORS), "samples. Resetting")
                 self.LABELED_DRIFT_DETECTORS[driftDetector].reset()
-        return classification
+
 
         for driftDetector in self.ENSEMBLE_DRIFT_DETECTORS:
-            detected = self.ENSEMBLE_DRIFT_DETECTORS[driftDetector].detect(ensembleError)
+            detected = self.ENSEMBLE_DRIFT_DETECTORS[driftDetector].detect(ensembleRaw)
             if detected:
                 std_flush(driftDetector, "has detected drift at", len(self.ERRORS), "samples. Resetting")
                 self.ENSEMBLE_DRIFT_DETECTORS[driftDetector].reset()
+
+
+        return classification
 
         #Iterate through classifiers in ensembleModelNames and get their error rates
         # for each classifier with too much error, Do something -- perform an update + copy using DRIFT_DATA_FILE
