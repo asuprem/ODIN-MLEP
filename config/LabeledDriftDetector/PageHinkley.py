@@ -4,7 +4,6 @@ from LabeledDriftDetector import LabeledDriftDetector
 class PageHinkley(LabeledDriftDetector):
     def __init__(self,min_instances=30, delta = 0.005, threshold=50, alpha = 0.9999):
 
-        from math import sqrt
         self.min_instances = min_instances
         self.delta=delta
         self.threshold = threshold
@@ -12,7 +11,6 @@ class PageHinkley(LabeledDriftDetector):
         self.mean = None
         self.n = None
         self.sum = None
-        self.sqrt=sqrt
         self.reset()
 
 
@@ -36,7 +34,7 @@ class PageHinkley(LabeledDriftDetector):
 
         self.n+=1
         self.mean = self.mean + (classification - self.mean)/float(self.n)
-        self.sum = max(0.0, self.alpha*self.sum(classification - self.mean - self.delta))
+        self.sum = max(0.0, self.alpha*self.sum+(classification - self.mean - self.delta))
 
         if self.n < self.min_instances:
             return False
