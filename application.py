@@ -60,12 +60,12 @@ def main(experimentname, update, weights, select, filter, kval):
 
     streamData = StreamLocal(data_source="data/data/2014_to_dec2018.json", data_mode="single", data_set_class=PseudoJsonTweets)
 
-    negatives = []
-    with open('data/data/collectedIrrelevant.json','r') as data_file:
-        for line in data_file:
-            negatives.append(json.loads(line.strip()))
+
+    augmentation = BatchedLocal(data_source='data/data/collectedIrrelevant.json', data_mode="single", data_set_class=PseudoJsonTweets)
+    augmentation.load_by_class()
     
     trainingData = BatchedLocal(data_source='data/data/initialTrainingData.json', data_mode="single", data_set_class=PseudoJsonTweets)
+    trainingData.load()
 
     """
     BatchedLocal.getData() --> return list of DataSet objects
@@ -98,8 +98,9 @@ def main(experimentname, update, weights, select, filter, kval):
     # datamodel is a streaming data model??? --> look at streaming in sci-kit multiflow
 
     MLEPLearner.initialTrain(traindata=trainingData)
+    MLEPLearner.memoryTrack("default")
     std_flush("Completed training at", readable_time())
-    MLEPLearner.addNegatives(negatives)
+    MLEPLearner.addAugmentation(augmentation)
 
     # let's do something with it
     totalCounter = []

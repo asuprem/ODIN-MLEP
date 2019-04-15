@@ -1,5 +1,5 @@
 from DataSet import DataSet
-from json import loads
+from json import loads, dumps
 
 class PseudoJson(DataSet):
     """ PseudoJson model parses a psuedojson line and extracts relevant details from it """
@@ -17,6 +17,9 @@ class PseudoJson(DataSet):
 
     def getValue(self,key):
         return self.raw[key]
+
+    def serialize(self,):
+        return dumps(self.raw)
 
 
     

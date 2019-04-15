@@ -67,6 +67,10 @@ class MLEPLearningServer():
         # Just the initial models
         self.TRAIN_MODELS = []
 
+        # memoryTracker
+        self.MEMORY_TRACKER=None
+        self.AUGMENT = None
+
     def configureSqlite(self):
         """Configure SQLite to convert numpy arrays to TEXT when INSERTing, and TEXT back to numpy
         arrays when SELECTing."""
@@ -112,7 +116,7 @@ class MLEPLearningServer():
         for directory in self.setups:
             os.makedirs(os.path.join(self.SOURCE_DIR, directory))
         # Create scheduled file.
-        open(self.SCHEDULED_DATA_FILE, 'w').close()
+        self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
 
     def setupDbConnection(self):
         """Set up connection to a SQLite database."""
@@ -210,13 +214,12 @@ class MLEPLearningServer():
             else:    
                 # perform scheduled update
                 
-                # show lines in file
-                num_lines = sum(1 for line in open(self.SCHEDULED_DATA_FILE))
-                if num_lines == 0:
-                    std_flush("Attempted update at", ms_to_readable(self.overallTimer), ", but ", num_lines,"data samples." )
+                # get samples in memory for update
+                if not self.MEMORY_TRACKER.hasSamples():
+                    std_flush("Attempted update at", ms_to_readable(self.overallTimer), ", but 0 data samples." )
                     
                 else:  
-                    std_flush("Scheduled update at", ms_to_readable(self.overallTimer), "with", num_lines,"data samples." )
+                    std_flush("Scheduled update at", ms_to_readable(self.overallTimer), "with", self.MEMORY_TRACKER.memorySize(),"data samples." )
                     
                     # TODO This is also a simplification in this implementation
                     # Normally, MLEPServer will use specialized data access routines
@@ -227,6 +230,8 @@ class MLEPLearningServer():
                     # Here, though, we follow KISS - Keep It Simple, Silly, and assume single type of data. We also assume data format (big NO NO)
                     scheduledTrainingData = self.getScheduledTrainingData()
                     
+                    # scheduledTrainingData is a BatchedLocal...
+
                     # Scheduled Generate
                     # TODO -- set up 
                     self.train(scheduledTrainingData)
@@ -276,51 +281,56 @@ class MLEPLearningServer():
                 except:
                     pass
                 '''
-                open(self.SCHEDULED_DATA_FILE, 'w').close()
+                self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
 
     def getScheduledTrainingData(self):
         """ Get the data in self.SCHEDULED_DATA_FILE """
 
         # need to load it as  BatchedModel...
         # (So, first scheduledDataFile needs to save stuff as BatchedModel...)
+
+        # We load stuff from batched model
+        # Then we check how many for each class
+        # perform augmentation for the binary case
         import random
-        scheduledTrainingData = []
-        scheduledNegativeData = []
-        
-        with open(self.SCHEDULED_DATA_FILE,'r') as data_file:
-            for line in data_file:
-                try:
-                    _json = json.loads(line.strip())
-                    if _json["label"] == 0:
-                        scheduledNegativeData.append(_json)
+        scheduledTrainingData = None
+
+        # TODO close the opened one before opening a read connection!!!!!
+        if self.MEMORY_MODE == "default":
+            from config.DataModel.BatchedLocal import BatchedLocal
+            from config.DataSet.PseudoJsonTweets import PseudoJsonTweets
+
+            scheduledTrainingData = BatchedLocal(data_source=self.SCHEDULED_DATA_FILE, data_mode="single", data_set_class=PseudoJsonTweets)
+            scheduledTrainingData.load_by_class()
+            #trainDataLength = scheduledTrainingData.all_class_sizes()
+
+
+            if self.CLASSIFY_MODE == "binary":
+                negDataLength = scheduledTrainingData.class_size(0)
+                posDataLength = scheduledTrainingData.class_size(1)
+                if negDataLength < 0.8*posDataLength:
+                    std_flush("Too few negative results. Adding more")
+                    if self.AUGMENT.class_size(0) < posDataLength:
+                        # We'll need a random sampled for self.negatives BatchedLoad
+                        scheduledTrainingData.augment_by_class(self.AUGMENT.getObjectsByClass(0), 0)
                     else:
-                        scheduledTrainingData.append(_json)
-                except:
-                    # Sometimes there are buffer errors because this is not a real-server. Production implementation uses REDIS Pub/Sub 
-                    # to deliver messages. Using File IO causes more headaches than is worth, so we just ignore errors
-                    pass
-                
-        # Threshold for augmentation is above or below 20% - 0.8 -- 1.2
-        trainDataLength = len(scheduledTrainingData)
-        negDataLength = len(scheduledNegativeData)
-        
-        if negDataLength < 0.8*trainDataLength:
-            std_flush("Too few negative results. Adding more")
-            scheduledTrainingData+=scheduledNegativeData
-            if len(self.negatives) < 0.2*trainDataLength:
-                scheduledTrainingData+=self.negatives
+                        scheduledTrainingData.augment_by_class(random.sample(self.AUGMENT.getObjectsByClass(0), posDataLength-negDataLength), 0)
+                elif negDataLength > 1.2 *posDataLength:
+                    # Too many negative data; we'll prune some
+                    std_flush("Too many  negative samples. Pruning")
+                    scheduledTrainingData.prune_by_class(0,negDataLength-posDataLength)
+                    # TODO
+                else:
+                    # Just right
+                    std_flush("No augmentation necessary")
+
+                # return combination of all classes
+                return scheduledTrainingData
             else:
-                scheduledTrainingData+=random.sample(self.negatives, trainDataLength-negDataLength)
-        elif negDataLength > 1.2 *trainDataLength:
-            # Too many negative data; we'll prune some
-            std_flush("Too many  negative samples. Pruning")
-            scheduledTrainingData += random.sample(scheduledNegativeData, trainDataLength)
+                raise NotImplementedError()
+
         else:
-            # Just right
-            std_flush("No augmentation necessary")
-            scheduledTrainingData+=scheduledNegativeData
-                
-        return scheduledTrainingData
+            raise NotImplementedError()
 
     # data is BatchedLocal
     def generatePipeline(self,data, pipeline):
@@ -363,9 +373,9 @@ class MLEPLearningServer():
         model = pipelineModelClass()
         model.clone(self.MODELS[modelSaveName])
 
-        X_train = self.ENCODERS[encoderName].batchEncode([item['text'] for item in data])
+        X_train = self.ENCODERS[encoderName].batchEncode(data.getData())
         centroid = self.ENCODERS[encoderName].getCentroid(X_train)
-        y_train = [item['label'] for item in data]
+        y_train = data.getLabels()
 
         precision, recall, score = model.update_and_test(X_train, y_train)
 
@@ -589,8 +599,8 @@ class MLEPLearningServer():
         return json.load(codecs.open(json_, encoding='utf-8'))
 
     
-    def addNegatives(self,negatives):
-        self.negatives = negatives
+    def addAugmentation(self,augmentation):
+        self.AUGMENT = augmentation
 
 
 
@@ -716,6 +726,8 @@ class MLEPLearningServer():
         return ensembleModelNames
 
     def getTopKNearestModels(self,ensembleModelNames, data):
+        #data is a DataSet object
+
         # find top-k nearest centroids
         k_val = self.MLEPConfig["k-val"]
         # Basic optimization:
@@ -757,7 +769,7 @@ class MLEPLearningServer():
             performances=[]
             for _encoder in encoderToModel:
                 kClosestPerEncoder[_encoder] = []
-                _encodedData = self.ENCODERS[_encoder].encode(data["text"])
+                _encodedData = self.ENCODERS[_encoder].encode(data.getData())
                 # Find distance to all appropriate models
                 # Then sort and take top-5
                 # This can probably be optimized to not perform unneeded Distance calculations (if, e.g. two models have the same training dataset - something to consider)
@@ -804,9 +816,12 @@ class MLEPLearningServer():
         return ensembleModelNames
 
     def classify(self, data):
+
+        # save to scheduledDataFile
+        #data is DataSet -- PseudoJson
+        self.addToMemory(data)
         # First set up list of correct models
         ensembleModelNames = self.getValidModels()
-
         # Now that we have collection of candidaate models, we use filter_select to decide how to choose the right model
 
         if self.MLEPConfig["filter_select"] == "top-k":
@@ -857,7 +872,7 @@ class MLEPLearningServer():
             localEncoder[self.MLEPPipelines[pipelineName]["sequence"][0]] = 0
         
         for encoder in localEncoder:
-            localEncoder[encoder] = self.ENCODERS[encoder].encode(data['text'])
+            localEncoder[encoder] = self.ENCODERS[encoder].encode(data.getData())
 
 
         classification = 0
@@ -875,7 +890,23 @@ class MLEPLearningServer():
         return 0 if classification < 0.5 else 1
 
 
+    def memoryTrack(self,mode="default"):
+        if mode == "default":
+            # Set up default tracker for scheduledDataFile
+            from config.DataModel.BatchedLocal import BatchedLocal
+            from config.DataSet.PseudoJsonTweets import PseudoJsonTweets
+            self.MEMORY_TRACKER = BatchedLocal(data_source=self.SCHEDULED_DATA_FILE, data_mode="single", data_set_class=PseudoJsonTweets)
+            self.MEMORY_MODE = mode
+            self.CLASSIFY_MODE = "binary"
+        else:
+            raise NotImplementedError()
 
+    # data is a dataset object
+    def addToMemory(self,data):
+        self.MEMORY_TRACKER.write(data,"a")
+    
+    def clearMemory(self,):
+        self.MEMORY_TRACKER.clear()
 
 
 class MLEPPredictionServer():
