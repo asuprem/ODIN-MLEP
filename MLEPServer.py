@@ -6,6 +6,8 @@ import pdb
 
 from utils import std_flush, ms_to_readable, time_to_id, adapt_array, convert_array, readable_time
 
+from config.LabeledDriftDetector import DDM, EDDM, PageHinkley
+
 import numpy as np
 
 import sqlite3
@@ -70,6 +72,17 @@ class MLEPLearningServer():
         # memoryTracker
         self.MEMORY_TRACKER=None
         self.AUGMENT = None
+        self.ERRORS = []
+
+        # TODO -- update config to let users select drift detectors
+        self.LABELED_DRIFT_DETECTORS = {}
+        self.LABELED_DRIFT_DETECTORS["DDM"] = DDM.DDM()
+        self.LABELED_DRIFT_DETECTORS["EDDM"] = EDDM.EDDM()
+        self.LABELED_DRIFT_DETECTORS["PH"] = PageHinkley.PageHinkley()
+
+        self.ENSEMBLE_DRIFT_DETECTORS = {}
+
+
 
     def configureSqlite(self):
         """Configure SQLite to convert numpy arrays to TEXT when INSERTing, and TEXT back to numpy
@@ -816,7 +829,7 @@ class MLEPLearningServer():
         return ensembleModelNames
 
     def classify(self, data):
-
+        # data has a Label... we don't deal with it just yet
         # save to scheduledDataFile
         #data is DataSet -- PseudoJson
         self.addToMemory(data)
@@ -876,6 +889,8 @@ class MLEPLearningServer():
 
 
         classification = 0
+        ensembleWeighted = [0]*len(ensembleModelNames)
+        ensembleRaw = [0]*len(ensembleModelNames)
         for idx,_name in enumerate(ensembleModelNames):
             # use the prescribed enc; ensembleModelNames are the modelSaveFile
             # We need the pipeline each is associated with (so that we can extract front-loaded encoder)
@@ -885,9 +900,55 @@ class MLEPLearningServer():
             # Then get the locally encoded thingamajig of the data
             # And pass it into predict()
             cls_=self.MODELS[_name].predict(localEncoder[self.MLEPPipelines[pipelineNameDict[_name]]["sequence"][0]])
-            classification+= weights[idx]*cls_
+            ensembleWeighted[idx] = float(weights[idx]*cls_)
+            ensembleRaw[idx] = float(cls_)
 
-        return 0 if classification < 0.5 else 1
+        #pdb.set_trace()
+        # Assume binary. We'll deal with others later
+        classification = sum(ensembleWeighted)
+        classification =  0 if classification < 0.5 else 1
+        
+
+        error = 0
+        if classification != data.getLabel():
+            self.ERRORS.append(1)
+            error = 1
+        else:
+            self.ERRORS.append(0)
+            error = 0
+        ensembleError = [(1 if score != data.getLabel() else 0) for score in ensembleRaw]
+
+        # Standard Drift detect using errors
+        for driftDetector in self.LABELED_DRIFT_DETECTORS:
+            if driftDetector == "PH":
+                detected = self.LABELED_DRIFT_DETECTORS[driftDetector].detect(classification)
+            else:
+                detected = self.LABELED_DRIFT_DETECTORS[driftDetector].detect(error)
+            if detected:
+                std_flush(driftDetector, "has detected drift at", len(self.ERRORS), "samples. Resetting")
+                self.LABELED_DRIFT_DETECTORS[driftDetector].reset()
+        return classification
+
+        for driftDetector in self.ENSEMBLE_DRIFT_DETECTORS:
+            detected = self.ENSEMBLE_DRIFT_DETECTORS[driftDetector].detect(ensembleError)
+            if detected:
+                std_flush(driftDetector, "has detected drift at", len(self.ERRORS), "samples. Resetting")
+                self.ENSEMBLE_DRIFT_DETECTORS[driftDetector].reset()
+
+        #Iterate through classifiers in ensembleModelNames and get their error rates
+        # for each classifier with too much error, Do something -- perform an update + copy using DRIFT_DATA_FILE
+
+        # perform Drift Detection, and update Step, as necessary
+        # will also need to add data to internal memory tracker (similar to MEMORY)
+
+
+        
+
+        
+
+    
+
+
 
 
     def memoryTrack(self,mode="default"):
