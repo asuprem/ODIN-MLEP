@@ -4,12 +4,19 @@
         "allow_update_drift": true,
         "drift_class":"LabeledDriftDetector",
         "drift_mode":"DDM",
-        
+
         "update_schedule":2592000000,
         "weight_method":"unweighted",
         "select_method":"train",
         "filter_select":"no-filter",
-        "k-val": 5
+        "k-val": 5,
+
+        "drift_input":{
+            "DDM":"error",
+            "EDDM":"error",
+            "EnsembleDisagreement":"ensembleRaw",
+            "PageHinkley":"classification"
+        }
         
     },
 

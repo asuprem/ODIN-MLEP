@@ -51,9 +51,19 @@ class MLEPLearningServer():
         self.setUpEncoders()
         std_flush("\tFinished setting up encoders at", readable_time())
 
+        std_flush("\tStarted setting up metrics tracking at", readable_time())
+        self.setUpMetrics()
+        std_flush("\tFinished setting up metrics tracking at", readable_time())
+
+        # TODO -- update config to let users select drift detectors -- partially DONE
+        std_flush("\tStarted setting up drift tracker at", readable_time())
+        self.setUpDriftTracker()
+        std_flush("\tFinished setting up drift tracker at", readable_time())
+
         # Setting of 'hosted' models + data cetroids
         self.MODELS = {}
         self.CENTROIDS={}
+        self.METRICS={}
 
         # These are models generated and updated in the prior update
         self.RECENT_MODELS=[]
@@ -75,11 +85,8 @@ class MLEPLearningServer():
         self.AUGMENT = None
         self.ERRORS = []
 
-        # TODO -- update config to let users select drift detectors
-        std_flush("\tStarted setting up drift tracker at", readable_time())
-        self.setUpDriftTracker()
-        std_flush("\tFinished setting up drift tracker at", readable_time())
-
+        
+        """
         pipelineModelName = self.MLEPModels[pipelineModel]["scriptName"]
         pipelineModelModule = __import__("config.LearningModel.%s"%pipelineModelName, fromlist=[pipelineModelName])
         pipelineModelClass = getattr(pipelineModelModule,pipelineModelName)
@@ -93,7 +100,25 @@ class MLEPLearningServer():
 
         self.ENSEMBLE_DRIFT_DETECTORS = {}
         self.ENSEMBLE_DRIFT_DETECTORS["EnsDisagree"] = EnsembleDisagreement.EnsembleDisagreement()
+        """
 
+    def updateMetrics(self, classification, error, ensembleError, ensembleRaw, ensembleWeighted):
+        self.METRICS["all_errors"].append(error)
+        self.METRICS['classification'] = classification
+        self.METRICS['error'] = error
+        self.METRICS['ensembleRaw'] = ensembleRaw
+        self.METRICS['ensembleWeighted'] = ensembleWeighted
+        self.METRICS['ensembleError'] = ensembleError
+
+
+    def setUpMetrics(self,):
+        self.METRICS={}
+        self.METRICS["all_errors"] = []
+        self.METRICS['classification'] = None
+        self.METRICS['error'] = None
+        self.METRICS['ensembleRaw'] = []
+        self.METRICS['ensembleWeighted'] = []
+        self.METRICS['ensembleError'] = []
 
     def setUpDriftTracker(self,):
         driftTracker = self.MLEPConfig["drift_mode"]
@@ -912,6 +937,9 @@ class MLEPLearningServer():
             localEncoder[encoder] = self.ENCODERS[encoder].encode(data.getData())
 
 
+        #---------------------------------------------------------------------
+        # Time to classify
+        
         classification = 0
         ensembleWeighted = [0]*len(ensembleModelNames)
         ensembleRaw = [0]*len(ensembleModelNames)
@@ -933,27 +961,26 @@ class MLEPLearningServer():
         classification =  0 if classification < 0.5 else 1
         
 
-        error = 0
-        if classification != data.getLabel():
-            self.ERRORS.append(1)
-            error = 1
-        else:
-            self.ERRORS.append(0)
-            error = 0
-        ensembleError = [(1 if score != data.getLabel() else 0) for score in ensembleRaw]
+        error = 1 if classification != data.getLabel() else 0
+        ensembleError = [(1 if ensembleRawScore != data.getLabel() else 0) for ensembleRawScore in ensembleRaw]
 
+        self.updateMetrics(classification, error, ensembleError, ensembleRaw, ensembleWeighted)
 
         # perform drift detection and update:
-        #if not self.MLEPConfig["allow_update_drift"]:
-        #    return classification
+        if not self.MLEPConfig["allow_update_drift"]:
+            return classification
 
-        #if self.MLEPConfig["drift_class"] == "LabeledDriftDetector":
-            #
+        # send the input appropriate for the drift mode
+        # shuld be updated to be more readble; update so that users can define their own drift tracking method
+        driftDetected = self.DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["driftInput"][self.MLEPConfig["drift_mode"]]])
+        
+        # perform drift update (big whoo)
+            
 
         
 
 
-
+        """
         # Standard Drift detect using errors
         for driftDetector in self.LABELED_DRIFT_DETECTORS:
             if driftDetector == "PH":
@@ -970,7 +997,7 @@ class MLEPLearningServer():
             if detected:
                 std_flush(driftDetector, "has detected drift at", len(self.ERRORS), "samples. Resetting")
                 self.ENSEMBLE_DRIFT_DETECTORS[driftDetector].reset()
-
+        """
 
         return classification
 
