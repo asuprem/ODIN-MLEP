@@ -13,6 +13,8 @@ both working on improving code modularity, documentation, and testing.
 
 This readme is the most up-to-date set of instructions. However, the most up-to-date stable code release is 0.4. You can download it from the Releases tab or from [here](https://github.com/asuprem/MLEP/releases).
 
+For release 0.4, you will only need `w2v-wiki-wikipedia-20000.bin*` (and associated .npy files) in ./config/Sources/. For details, please read the **Downloading Support Files** section (very important)
+
 ## Quick start
 ### Creating a Python Virtual Environment
 The main purpose of using a Python virtual environment is to create an isolated environment for
