@@ -13,7 +13,7 @@ both working on improving code modularity, documentation, and testing.
 
 This readme is the most up-to-date set of instructions. However, the most up-to-date stable code release is 0.4. You can download it from the Releases tab or from [here](https://github.com/asuprem/MLEP/releases).
 
-For release 0.4, you will only need `w2v-wiki-wikipedia-20000.bin*` (and associated .npy files) in ./config/Sources/. For details, please read the **Downloading Support Files** section (very important)
+For release 0.4, you will only need `w2v-wiki-wikipedia-20000.bin*` (and associated .npy files) in ./config/Sources/. For details, please read the **Downloading Support Files** section in the **word2vec (Wikipedia)** (very important)
 
 ## Quick start
 ### Creating a Python Virtual Environment
@@ -51,18 +51,18 @@ Unit tests are (still) being written and merged to the repo.
 ### Downloading Support Files
 MLEP is designed to work out-of-the-box in most scenarios. However, there are some built-in files
 you may need to download:
-* Bag of Words: Text file to generate the Bag-of-Words model. We have provided a default
+* **Bag of Words**: Text file to generate the Bag-of-Words model. We have provided a default
 version [here](https://drive.google.com/open?id=1xxnAGya_gYxgGuKk7FRZ1s07uACBXgeU). You will need to
 move this file `bow.txt` into `./config/RawSources`. We have also provided a pre-built encoder file
 [here](https://drive.google.com/open?id=1lKjFcgwtyMTEDCpAr-7Oc-zmfp-G7gWh) (not required, as the
 encoder will generate it if missing). If you opt to download it, you will also need to move this
 file `bow.model` file into `./config/Sources/`.
-* word2vec (Google News): File containing pre-trained vectors built from Google News to be used
+* **word2vec (Google News)**: File containing pre-trained vectors built from Google News to be used
 by a word2vec encoder. We have provided a default version
 [here](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit). You will need to extract
 the file with extension `.bin` and move in into `./config/Sources/`. Also, rename it to
 `GoogleNews-vectors-negative300.bin`.
-* word2vec (Wikipedia): You must download a file containing a list of Wikipedia titles to be used by a word2vec encoder from
+* **word2vec (Wikipedia)**: You must download a file containing a list of Wikipedia titles to be used by a word2vec encoder from
 [here](https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-all-titles-in-ns0.gz). You will need
 to extract the archive and move this file into `./config/RawSources/`. Also, rename it to
 `enwiki-latest-all-titles-in-ns0`. To speed up the encoder generation, we have provided additional
