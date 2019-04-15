@@ -13,7 +13,7 @@ both working on improving code modularity, documentation, and testing.
 
 This readme is the most up-to-date set of instructions. However, the most up-to-date stable code release is 0.4. You can download it from the Releases tab or from [here](https://github.com/asuprem/MLEP/releases).
 
-For release 0.4, you will only need `w2v-wiki-wikipedia-20000.bin*` (and associated .npy files) in ./config/Sources/. For details, please read the **Downloading Support Files** section in the **word2vec (Wikipedia)** (very important)
+Regarding support files, for release 0.4, you will only need `w2v-wiki-wikipedia-20000.bin*` (and associated .npy files) in ./config/Sources/. For details, please read the **Downloading Support Files** section in the **word2vec (Wikipedia)** from [here](https://drive.google.com/open?id=1SL21I_FYOoDYuq77i4TRY1WDJhlZgy36). Please read through the **Downloading Support Files** section nevertheless.
 
 ## Quick start
 ### Creating a Python Virtual Environment
