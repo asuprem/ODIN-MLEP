@@ -19,9 +19,9 @@ The main purpose of using a Python virtual environment is to create an isolated 
 MLEP. This means that it can separately install its own dependencies, regardless of what package
 versions are installed in your system.
 
-Create a new Python virtual environment in directory `.env`:
+Create a new Python2.7 virtual environment in directory `.env`:
 ```console
-$ python3 -m venv .env
+$ python -m venv .env
 ```
 
 Now we need to activate the newly created virtual environment, setting up your shell to use it by
