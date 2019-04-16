@@ -1,4 +1,3 @@
-# pylint: disable=no-value-for-parameter
 import os, time, json, sys, pdb
 from MLEPServer import MLEPLearningServer, MLEPPredictionServer
 from utils import std_flush, readable_time, load_json
@@ -125,4 +124,4 @@ def main(experimentname, update, weights, select, filter, kval):
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter
