@@ -183,6 +183,7 @@ class MLEPLearningServer():
         try:
             self.DB_CONN = sqlite3.connect(self.DB_FILE, detect_types=sqlite3.PARSE_DECLTYPES)
         except Error as e:
+            # TODO handle these
             print(e)
 
     def initializeDb(self):
@@ -334,23 +335,25 @@ class MLEPLearningServer():
                     std_flush("Attempted update at", ms_to_readable(self.overallTimer), ", but 0 data samples." )
                     
                 else:  
-                    std_flush("Scheduled update at", ms_to_readable(self.overallTimer), "with", self.MEMORY_TRACKER["scheduled"].memorySize(),"data samples." )
-                    
-                    # Get the scheduled training data from Memory
-                    scheduledTrainingData = self.getTrainingData(memory_type="scheduled")
-                    self.clearMemory(memory_type="scheduled")
-                    
-                    # Scheduled Generate
-                    self.train(scheduledTrainingData)
-                    std_flush("Completed Scheduled Model generation at", readable_time())
-
-                    # Scheduled update
-                    self.update(scheduledTrainingData,models='all')
-                    std_flush("Completed Scheduled Model Update at", readable_time())
+                    self.MLEPUpdate(memory_type="scheduled")
 
                 self.updateModelStore()
                 self.scheduledFilterGenerateUpdateTimer = self.overallTimer
-                
+    
+    def MLEPUpdate(self,memory_type="scheduled"):
+        std_flush("Update using", memory_type, "-memory at", ms_to_readable(self.overallTimer), "with", self.MEMORY_TRACKER[memory_type].memorySize(),"data samples." )
+        # Get the training data from Memory
+        TrainingData = self.getTrainingData(memory_type=memory_type)
+        self.clearMemory(memory_type=memory_type)
+        
+        # Generate
+        self.train(TrainingData)
+        std_flush("Completed", memory_type, "-memory based Model generation at", readable_time())
+
+        # update
+        self.update(TrainingData,models='all')
+        std_flush("Completed", memory_type, "-memory based Model Update at", readable_time())
+
     def getTrainingData(self, memory_type="scheduled"):
         """ Get the data in self.SCHEDULED_DATA_FILE """
 
