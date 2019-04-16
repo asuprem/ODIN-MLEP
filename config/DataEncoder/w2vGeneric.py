@@ -1,6 +1,6 @@
-from DataEncoder import DataEncoder
+import DataEncoder
 
-class w2vGeneric(DataEncoder):
+class w2vGeneric(DataEncoder.DataEncoder):
     """ Built-in encoder for Generic w2v;"""
 
     def __init__(self,):
@@ -19,9 +19,9 @@ class w2vGeneric(DataEncoder):
             All options after trainMode are only relevant if trainMode is C
 
         """
-        from gensim.models import KeyedVectors
-        from gensim.utils import tokenize
-        from numpy import zeros
+        from gensim.models import KeyedVectors  # pylint: disable=import-error
+        from gensim.utils import tokenize   # pylint: disable=import-error
+        from numpy import zeros 
 
         from sklearn.metrics.pairwise import cosine_similarity
         from numpy import squeeze, asarray
@@ -75,7 +75,7 @@ class w2vGeneric(DataEncoder):
             # Check if rwa file already exists. If not, create it.
             wikipages = self.getWikipages(dimensionSize, seedName)
             
-            import gensim
+            import gensim   # pylint: disable=import-error
             #get tokenized forms
             documents = [gensim.utils.simple_preprocess(item) for item in wikipages]
             model = gensim.models.Word2Vec(documents, size=300, window=10,min_count=2,workers=10)
@@ -101,7 +101,8 @@ class w2vGeneric(DataEncoder):
         listOfWikiTitles={}
         
         if not os.path.exists(wikipagesFilePath):
-            import random, wikipedia
+            import random
+            import wikipedia    # pylint: disable=import-error
             random.seed(a=seed)
 
             articleTitleNames=[]

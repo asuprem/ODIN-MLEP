@@ -1,6 +1,6 @@
-from DataEncoder import DataEncoder
+import DataEncoder
 
-class bowEncoder(DataEncoder):
+class bowEncoder(DataEncoder.DataEncoder):
     """ Built-in encoder for bag of words; """
 
     def __init__(self,):

@@ -1,11 +1,10 @@
-import os, time, json, sys, pdb
-from MLEPServer import MLEPLearningServer, MLEPPredictionServer
-from utils import std_flush, readable_time, load_json
-import click
+import os, time, json, sys, pdb, click
+import utils
 
-from config.DataModel.BatchedLocal import BatchedLocal
-from config.DataModel.StreamLocal import StreamLocal
-from config.DataSet.PseudoJsonTweets import PseudoJsonTweets
+import MLEPServer
+from config.DataModel import BatchedLocal
+from config.DataModel import StreamLocal
+from config.DataSet import PseudoJsonTweets
 
 """
 Arguments
@@ -24,7 +23,7 @@ python application.py experimentName [updateSchedule] [weightMethod] [selectMeth
 @click.option('--kval', type=int)
 def main(experimentname, update, weights, select, filter, kval):
     # We'll load thhe config file, make changes, and write a secondary file for experiments
-    mlepConfig = load_json('./config/configuration/MLEPServer.json')
+    mlepConfig = utils.load_json('./config/configuration/MLEPServer.json')
     if update is not None:
         mlepConfig["config"]['update_schedule'] = update
     if weights is not None:
@@ -57,13 +56,13 @@ def main(experimentname, update, weights, select, filter, kval):
             data.append(json.loads(line.strip()))
 
 
-    streamData = StreamLocal(data_source="data/data/2014_to_dec2018.json", data_mode="single", data_set_class=PseudoJsonTweets)
+    streamData = StreamLocal.StreamLocal(data_source="data/data/2014_to_dec2018.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
 
 
-    augmentation = BatchedLocal(data_source='data/data/collectedIrrelevant.json', data_mode="single", data_set_class=PseudoJsonTweets)
+    augmentation = BatchedLocal.BatchedLocal(data_source='data/data/collectedIrrelevant.json', data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     augmentation.load_by_class()
     
-    trainingData = BatchedLocal(data_source='data/data/initialTrainingData.json', data_mode="single", data_set_class=PseudoJsonTweets)
+    trainingData = BatchedLocal.BatchedLocal(data_source='data/data/initialTrainingData.json', data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     trainingData.load()
     
 
@@ -81,8 +80,8 @@ def main(experimentname, update, weights, select, filter, kval):
     #   
     
     # Now we have the data
-    MLEPLearner = MLEPLearningServer(PATH_TO_CONFIG_FILE)
-    MLEPPredictor = MLEPPredictionServer()
+    MLEPLearner = MLEPServer.MLEPLearningServer(PATH_TO_CONFIG_FILE)
+    MLEPPredictor = MLEPServer.MLEPPredictionServer()
 
     # Train with raw training data (for now)
     # Assumptions - there is a 'text' field; assume we have access to a w2v encoder
@@ -91,7 +90,7 @@ def main(experimentname, update, weights, select, filter, kval):
     # datamodel is a streaming data model??? --> look at streaming in sci-kit multiflow
 
     MLEPLearner.initialTrain(traindata=trainingData)
-    std_flush("Completed training at", readable_time())
+    utils.std_flush("Completed training at", utils.readable_time())
     MLEPLearner.addAugmentation(augmentation)
 
     # let's do something with it
@@ -109,7 +108,7 @@ def main(experimentname, update, weights, select, filter, kval):
         else:
             mistakes.append(0.0)
         if len(totalCounter) % 1000 == 0 and len(totalCounter)>0:
-            std_flush("Completed", len(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/sum(totalCounter[-100:]))
+            utils.std_flush("Completed", len(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/sum(totalCounter[-100:]))
         if len(totalCounter) % 100 == 0 and len(totalCounter)>0:
             savePath.write(str(sum(mistakes[-100:])/sum(totalCounter[-100:]))+',')
 
@@ -120,7 +119,7 @@ def main(experimentname, update, weights, select, filter, kval):
 
     MLEPLearner.shutdown()
 
-    std_flush("\n-----------------------------\nCOMPLETED\n-----------------------------\n")
+    utils.std_flush("\n-----------------------------\nCOMPLETED\n-----------------------------\n")
 
 
 if __name__ == "__main__":

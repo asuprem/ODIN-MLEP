@@ -1,14 +1,14 @@
-from DataEncoder import DataEncoder
+import DataEncoder
 
-class w2vGoogleNews(DataEncoder):
+class w2vGoogleNews(DataEncoder.DataEncoder):
     """ Built-in encoder for Google w2v; limited to 100K most common words """
 
     def __init__(self,):
         pass
 
     def setup(self,):
-        from gensim.models import KeyedVectors
-        from gensim.utils import tokenize
+        from gensim.models import KeyedVectors  # pylint: disable=import-error
+        from gensim.utils import tokenize   # pylint: disable=import-error
         from numpy import zeros
 
         from sklearn.metrics.pairwise import cosine_similarity

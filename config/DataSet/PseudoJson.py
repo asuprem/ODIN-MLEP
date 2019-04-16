@@ -1,10 +1,11 @@
-from DataSet import DataSet
-from json import loads, dumps
+import DataSet
 
-class PseudoJson(DataSet):
+class PseudoJson(DataSet.DataSet):
     """ PseudoJson model parses a psuedojson line and extracts relevant details from it """
 
     def __init__(self,data, dataKey, labelKey):
+        from json import loads, dumps
+        self.dumps = dumps
         self.raw = loads(data)
         self.data = self.raw[dataKey]
         self.label = self.raw[labelKey]
@@ -19,7 +20,7 @@ class PseudoJson(DataSet):
         return self.raw[key]
 
     def serialize(self,):
-        return dumps(self.raw)
+        return self.dumps(self.raw)
 
 
     

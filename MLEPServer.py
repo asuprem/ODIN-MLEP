@@ -1,11 +1,9 @@
 import os, time
 
 import pdb
-
-from utils import std_flush, ms_to_readable, time_to_id, adapt_array, convert_array, readable_time
+import utils
 
 import sqlite3
-from sqlite3 import Error
 
 
 class MLEPLearningServer():
@@ -14,7 +12,7 @@ class MLEPLearningServer():
 
         PATH_TO_CONFIG_FILE -- [str] Path to the JSON configuration file.
         """
-        std_flush("Initializing MLEP...")
+        utils.std_flush("Initializing MLEP...")
 
         
         self.configureSqlite()
@@ -40,7 +38,7 @@ class MLEPLearningServer():
 
 
     def setUpModelTracker(self,):
-        std_flush("\tStarted setting up model tracking at", readable_time())
+        utils.std_flush("\tStarted setting up model tracking at", utils.readable_time())
         
         self.MODEL_TRACK = {}
         self.MODEL_TRACK["recent"] = []
@@ -52,7 +50,7 @@ class MLEPLearningServer():
         self.MODEL_TRACK["historical-updates"] = []
         self.MODEL_TRACK["train"] = []
 
-        std_flush("\tFinished setting up model tracking at", readable_time())
+        utils.std_flush("\tFinished setting up model tracking at", utils.readable_time())
 
     def updateMetrics(self, classification, error, ensembleError, ensembleRaw, ensembleWeighted):
         self.METRICS["all_errors"].append(error)
@@ -64,7 +62,7 @@ class MLEPLearningServer():
 
 
     def setUpMetrics(self,):
-        std_flush("\tStarted setting up metrics tracking at", readable_time())
+        utils.std_flush("\tStarted setting up metrics tracking at", utils.readable_time())
 
         self.METRICS={}
         self.METRICS["all_errors"] = []
@@ -74,12 +72,12 @@ class MLEPLearningServer():
         self.METRICS['ensembleWeighted'] = []
         self.METRICS['ensembleError'] = []
 
-        std_flush("\tFinished setting up metrics tracking at", readable_time())
+        utils.std_flush("\tFinished setting up metrics tracking at", utils.readable_time())
 
 
     def setUpDriftTracker(self,):
 
-        std_flush("\tStarted setting up drift tracker at", readable_time())
+        utils.std_flush("\tStarted setting up drift tracker at", utils.readable_time())
         driftTracker = self.MLEPConfig["drift_mode"]
         driftModule = self.MLEPConfig["drift_class"]
         driftArgs = self.MLEPConfig["drift_args"] if "drift_args" in self.MLEPConfig else {}
@@ -87,19 +85,19 @@ class MLEPLearningServer():
         driftTrackerClass = getattr(driftModuleImport,driftTracker)
         self.DRIFT_TRACKER = driftTrackerClass(**driftArgs)
 
-        std_flush("\tFinished setting up drift tracker at", readable_time())
+        utils.std_flush("\tFinished setting up drift tracker at", utils.readable_time())
 
 
     def configureSqlite(self):
         """Configure SQLite to convert numpy arrays to TEXT when INSERTing, and TEXT back to numpy
         arrays when SELECTing."""
-        std_flush("\tStarted configuring SQLite at", readable_time())
+        utils.std_flush("\tStarted configuring SQLite at", utils.readable_time())
 
         import numpy as np
-        sqlite3.register_adapter(np.ndarray, adapt_array)
-        sqlite3.register_converter("array", convert_array)
+        sqlite3.register_adapter(np.ndarray, utils.adapt_array)
+        sqlite3.register_converter("array", utils.convert_array)
 
-        std_flush("\tFinished configuring SQLite at", readable_time())
+        utils.std_flush("\tFinished configuring SQLite at", utils.readable_time())
 
 
     def loadConfig(self, config_path):
@@ -107,7 +105,7 @@ class MLEPLearningServer():
 
         config_path -- [str] Path to the JSON configuration file.
         """
-        std_flush("\tStarted loading JSON configuration file at", readable_time())
+        utils.std_flush("\tStarted loading JSON configuration file at", utils.readable_time())
 
         self.config = self.load_json(config_path)
         self.MLEPConfig = self.config["config"]
@@ -115,11 +113,11 @@ class MLEPLearningServer():
         self.MLEPPipelines = self.getValidPipelines()
         self.MLEPEncoders = self.getValidEncoders()
 
-        std_flush("\tFinished loading JSON configuration file at", readable_time())
+        utils.std_flush("\tFinished loading JSON configuration file at", utils.readable_time())
 
     def initializeTimers(self):
         """Initialize time attributes."""
-        std_flush("\tStarted initializing timers at", readable_time())
+        utils.std_flush("\tStarted initializing timers at", utils.readable_time())
 
         # Internal clock of the server.
         self.overallTimer = None
@@ -131,11 +129,11 @@ class MLEPLearningServer():
         # days.
         self.scheduledSchedule = self.MLEPConfig.get("update_schedule", 86400000 * 30)
 
-        std_flush("\tFinished initializing timers at", readable_time())
+        utils.std_flush("\tFinished initializing timers at", utils.readable_time())
 
     def setupDirectoryStructure(self):
         """Set up directory structure."""
-        std_flush("\tStarted setting up directory structure at", readable_time())
+        utils.std_flush("\tStarted setting up directory structure at", utils.readable_time())
 
         import shutil
         
@@ -146,31 +144,31 @@ class MLEPLearningServer():
         try:
             shutil.rmtree(self.SOURCE_DIR)
         except Exception as e:
-            std_flush("Error deleting directory tree: ", str(e))
+            utils.std_flush("Error deleting directory tree: ", str(e))
         # Make directory tree.
         os.makedirs(self.SOURCE_DIR)
         for directory in self.setups:
             os.makedirs(os.path.join(self.SOURCE_DIR, directory))
 
-        std_flush("\tFinished setting up directory structure at", readable_time())
+        utils.std_flush("\tFinished setting up directory structure at", utils.readable_time())
 
     def setupDbConnection(self):
         """Set up connection to a SQLite database."""
-        std_flush("\tStarted setting up database connection at", readable_time())
+        utils.std_flush("\tStarted setting up database connection at", utils.readable_time())
             
         self.DB_CONN = None
         try:
             self.DB_CONN = sqlite3.connect(self.DB_FILE, detect_types=sqlite3.PARSE_DECLTYPES)
-        except Error as e:
+        except sqlite3.Error as e:
             # TODO handle these
             print(e)
 
-        std_flush("\tFinished setting up database connection at", readable_time())
+        utils.std_flush("\tFinished setting up database connection at", utils.readable_time())
 
     def initializeDb(self):
         """Create tables in a SQLite database."""
 
-        std_flush("\tStarted initializing database at", readable_time())
+        utils.std_flush("\tStarted initializing database at", utils.readable_time())
         cursor = self.DB_CONN.cursor()
         cursor.execute("""Drop Table IF EXISTS Models""")
         cursor.execute("""
@@ -195,7 +193,7 @@ class MLEPLearningServer():
         self.DB_CONN.commit()
         cursor.close()
 
-        std_flush("\tFinished initializing database at", readable_time())
+        utils.std_flush("\tFinished initializing database at", utils.readable_time())
 
     def updateModelStore(self,):
         # These are models generated and updated in the prior update
@@ -238,19 +236,19 @@ class MLEPLearningServer():
         # Update Model Timer
         self.MLEPModelTimer = time.time()
 
-        std_flush("New Models: ", self.MODEL_TRACK["recent-new"])
-        std_flush("Update Models: ", self.MODEL_TRACK["recent-updates"])
+        utils.std_flush("New Models: ", self.MODEL_TRACK["recent-new"])
+        utils.std_flush("Update Models: ", self.MODEL_TRACK["recent-updates"])
 
 
     def setUpEncoders(self):
         """Set up built-in encoders (Google News w2v)."""
 
-        std_flush("\tStarted setting up encoders at", readable_time())
+        utils.std_flush("\tStarted setting up encoders at", utils.readable_time())
 
             
         self.ENCODERS = {}
         for _ , encoder_config in self.MLEPEncoders.items():
-            std_flush("\t\tSetting up encoder", encoder_config["name"], "at", readable_time())
+            utils.std_flush("\t\tSetting up encoder", encoder_config["name"], "at", utils.readable_time())
             encoderName = encoder_config["scriptName"]
             encoderModule = __import__("config.DataEncoder.%s" % encoderName,
                     fromlist=[encoderName])
@@ -264,10 +262,10 @@ class MLEPLearningServer():
                             **encoder_config["fail-args"])
                     self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])
                 except:
-                    std_flush("\t\tFailed setting up encoder", encoder_config["name"])
+                    utils.std_flush("\t\tFailed setting up encoder", encoder_config["name"])
                     pass
 
-        std_flush("\tFinished setting up encoders at", readable_time())
+        utils.std_flush("\tFinished setting up encoders at", utils.readable_time())
 
     def getValidPipelines(self,):
         """ get pipelines that are, well, valid """
@@ -310,7 +308,7 @@ class MLEPLearningServer():
         if self.enoughTimeElapsedBetweenUpdates():
             # TODO change this to check if scheduledMemoryTrack exists
             if not self.MEMORY_TRACKER["scheduled"].hasSamples():
-                std_flush("Attempted update at", ms_to_readable(self.overallTimer), ", but 0 data samples." ) 
+                utils.std_flush("Attempted update at", utils.ms_to_readable(self.overallTimer), ", but 0 data samples." ) 
             else:  
                 self.MLEPUpdate(memory_type="scheduled")
 
@@ -318,18 +316,18 @@ class MLEPLearningServer():
             self.scheduledFilterGenerateUpdateTimer = self.overallTimer
     
     def MLEPUpdate(self,memory_type="scheduled"):
-        std_flush("Update using", memory_type, "-memory at", ms_to_readable(self.overallTimer), "with", self.MEMORY_TRACKER[memory_type].memorySize(),"data samples." )
+        utils.std_flush("Update using", memory_type, "-memory at", utils.ms_to_readable(self.overallTimer), "with", self.MEMORY_TRACKER[memory_type].memorySize(),"data samples." )
         # Get the training data from Memory
         TrainingData = self.getTrainingData(memory_type=memory_type)
         self.clearMemory(memory_type=memory_type)
         
         # Generate
         self.train(TrainingData)
-        std_flush("Completed", memory_type, "-memory based Model generation at", readable_time())
+        utils.std_flush("Completed", memory_type, "-memory based Model generation at", utils.readable_time())
 
         # update
         self.update(TrainingData,models_to_update='recent')
-        std_flush("Completed", memory_type, "-memory based Model Update at", readable_time())
+        utils.std_flush("Completed", memory_type, "-memory based Model Update at", utils.readable_time())
         self.updateModelStore()
 
     def getTrainingData(self, memory_type="scheduled"):
@@ -361,7 +359,7 @@ class MLEPLearningServer():
                 negDataLength = scheduledTrainingData.class_size(0)
                 posDataLength = scheduledTrainingData.class_size(1)
                 if negDataLength < 0.8*posDataLength:
-                    std_flush("Too few negative results. Adding more")
+                    utils.std_flush("Too few negative results. Adding more")
                     if self.AUGMENT.class_size(0) < posDataLength:
                         # We'll need a random sampled for self.negatives BatchedLoad
                         scheduledTrainingData.augment_by_class(self.AUGMENT.getObjectsByClass(0), 0)
@@ -369,12 +367,12 @@ class MLEPLearningServer():
                         scheduledTrainingData.augment_by_class(random.sample(self.AUGMENT.getObjectsByClass(0), posDataLength-negDataLength), 0)
                 elif negDataLength > 1.2 *posDataLength:
                     # Too many negative data; we'll prune some
-                    std_flush("Too many  negative samples. Pruning")
+                    utils.std_flush("Too many  negative samples. Pruning")
                     scheduledTrainingData.prune_by_class(0,negDataLength-posDataLength)
                     # TODO
                 else:
                     # Just right
-                    std_flush("No augmentation necessary")
+                    utils.std_flush("No augmentation necessary")
 
                 # return combination of all classes
                 return scheduledTrainingData
@@ -532,7 +530,7 @@ class MLEPLearningServer():
             # Also, since our models are small-ish, we can make do by hosting models in memory
             # Production implementation (and going forward), models would be hosted as an API endpoint until "retirement"
 
-            #std_flush("Setting up", currentEncoder["name"], "at", readable_time())
+            #utils.std_flush("Setting up", currentEncoder["name"], "at", utils.readable_time())
             
             # trainData is a DataModel (in our case, a BatchedLocal)
             # set up pipeline
@@ -581,7 +579,7 @@ class MLEPLearningServer():
             # Also, since our models are small-ish, we can make do by hosting models in memory
             # Production implementation (and going forward), models would be hosted as an API endpoint until "retirement"
 
-            #std_flush("Setting up", currentEncoder["name"], "at", readable_time())
+            #utils.std_flush("Setting up", currentEncoder["name"], "at", utils.readable_time())
             
             # set up pipeline
             currentPipeline = self.MLEPPipelines[pipeline]
@@ -608,9 +606,9 @@ class MLEPLearningServer():
 
 
     def createModelId(self, timestamp, pipelineName, fscore):
-        strA = time_to_id(timestamp)
-        strB = time_to_id(hash(pipelineName))
-        strC = time_to_id(fscore, 5)
+        strA = utils.time_to_id(timestamp)
+        strB = utils.time_to_id(hash(pipelineName))
+        strC = utils.time_to_id(fscore, 5)
         return "_".join([strA,strB,strC])
         
 
@@ -908,7 +906,7 @@ class MLEPLearningServer():
         # shuld be updated to be more readble; update so that users can define their own drift tracking method
         driftDetected = self.DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["drift_input"][self.MLEPConfig["drift_mode"]]])
         if driftDetected:
-            std_flush(self.MLEPConfig["drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
+            utils.std_flush(self.MLEPConfig["drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
             self.DRIFT_TRACKER.reset()
             
             # perform drift update (big whoo)
@@ -922,14 +920,14 @@ class MLEPLearningServer():
 
     def setUpMemories(self,):
 
-        std_flush("\tStarted setting up memories at", readable_time())
+        utils.std_flush("\tStarted setting up memories at", utils.readable_time())
         self.MEMORY_TRACKER = {}
         self.MEMORY_MODE = {}
         self.CLASSIFY_MODE = {}
-        std_flush("\tFinished setting up memories at", readable_time())
+        utils.std_flush("\tFinished setting up memories at", utils.readable_time())
 
     def memoryTrack(self,memory_type = "scheduled", mode="default"):
-        std_flush("\tStarted setting up", memory_type, "memory at" , readable_time())
+        utils.std_flush("\tStarted setting up", memory_type, "memory at" , utils.readable_time())
         if mode == "default":
             # Set up default tracker for scheduledDataFile
             from config.DataModel.BatchedLocal import BatchedLocal
@@ -941,7 +939,7 @@ class MLEPLearningServer():
             self.CLASSIFY_MODE[memory_type] = "binary"
         else:
             raise NotImplementedError()
-        std_flush("\tFinished setting up", memory_type, "memory at" , readable_time())
+        utils.std_flush("\tFinished setting up", memory_type, "memory at" , utils.readable_time())
 
     # data is a dataset object
     def addToMemory(self,memory_type, data):

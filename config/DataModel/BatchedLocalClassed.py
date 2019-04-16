@@ -1,6 +1,6 @@
-from BatchedLocal import BatchedLocal
+import BatchedLocal
 
-class BatchedLocalClassed(BatchedLocal):
+class BatchedLocalClassed(BatchedLocal.BatchedLocal):
     """ BatchedLocal model loads the batchedlocal file"""
     
     def __init__(self, data_source=None, data_mode=None, num_samples="all", data_set_class=None, classification_mode="binary", classes=[0,1]):
