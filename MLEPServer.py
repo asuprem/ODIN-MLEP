@@ -1,15 +1,8 @@
-import os, shutil
-import json, codecs
-import time
+import os, time
 
 import pdb
 
 from utils import std_flush, ms_to_readable, time_to_id, adapt_array, convert_array, readable_time
-
-from config.DriftDetector.LabeledDriftDetector import DDM, EDDM, PageHinkley
-from config.DriftDetector.EnsembleDriftDetector import EnsembleDisagreement
-
-import numpy as np
 
 import sqlite3
 from sqlite3 import Error
@@ -120,6 +113,7 @@ class MLEPLearningServer():
     def configureSqlite(self):
         """Configure SQLite to convert numpy arrays to TEXT when INSERTing, and TEXT back to numpy
         arrays when SELECTing."""
+        import numpy as np
         sqlite3.register_adapter(np.ndarray, adapt_array)
         sqlite3.register_converter("array", convert_array)
 
@@ -148,6 +142,9 @@ class MLEPLearningServer():
 
     def setupDirectoryStructure(self):
         """Set up directory structure."""
+        
+        import shutil
+        
         self.SOURCE_DIR = "./.MLEPServer"
         self.setups = ['models', 'data', 'modelSerials', 'db']
         self.DB_FILE = './.MLEPServer/db/MLEP.db'
@@ -247,7 +244,7 @@ class MLEPLearningServer():
     def setUpEncoders(self):
         """Set up built-in encoders (Google News w2v)."""
         self.ENCODERS = {}
-        for encoder_type, encoder_config in self.MLEPEncoders.items():
+        for _ , encoder_config in self.MLEPEncoders.items():
             std_flush("\t\tSetting up encoder", encoder_config["name"], "at", readable_time())
             encoderName = encoder_config["scriptName"]
             encoderModule = __import__("config.DataEncoder.%s" % encoderName,
@@ -657,6 +654,7 @@ class MLEPLearningServer():
         
 
     def load_json(self,json_):
+        import json, codecs
         return json.load(codecs.open(json_, encoding='utf-8'))
 
     
@@ -827,7 +825,6 @@ class MLEPLearningServer():
             
             # 3. Then for each encoder, find k-closest model_save_path
             kClosestPerEncoder = {}
-            performances=[]
             for _encoder in encoderToModel:
                 kClosestPerEncoder[_encoder] = []
                 _encodedData = self.ENCODERS[_encoder].encode(data.getData())

@@ -66,12 +66,6 @@ def main(experimentname, update, weights, select, filter, kval):
     
     trainingData = BatchedLocal(data_source='data/data/initialTrainingData.json', data_mode="single", data_set_class=PseudoJsonTweets)
     trainingData.load()
-
-    """
-    BatchedLocal.getData() --> return list of DataSet objects
-    BatchedLocal.getLabels()
-
-    """
     
 
     # Let's consider three data delivery models:
@@ -105,8 +99,6 @@ def main(experimentname, update, weights, select, filter, kval):
     totalCounter = []
     mistakes = []
     while streamData.next():
-        # Eventually, we need to move beyond literal time and into pure drift adaptivity
-        # TODO ^^
         if internalTimer < streamData.getObject().getValue("timestamp"):
             internalTimer = streamData.getObject().getValue("timestamp")
             MLEPLearner.updateTime(internalTimer)
