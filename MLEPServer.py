@@ -89,22 +89,6 @@ class MLEPLearningServer():
         # Augmenter
         self.AUGMENT = None
 
-        
-        """
-        pipelineModelName = self.MLEPModels[pipelineModel]["scriptName"]
-        pipelineModelModule = __import__("config.LearningModel.%s"%pipelineModelName, fromlist=[pipelineModelName])
-        pipelineModelClass = getattr(pipelineModelModule,pipelineModelName)
-        # data is a BatchedLocal
-        model = pipelineModelClass()
-
-        self.LABELED_DRIFT_DETECTORS = {}
-        self.LABELED_DRIFT_DETECTORS["DDM"] = DDM.DDM()
-        self.LABELED_DRIFT_DETECTORS["EDDM"] = EDDM.EDDM()
-        self.LABELED_DRIFT_DETECTORS["PH"] = PageHinkley.PageHinkley()
-
-        self.ENSEMBLE_DRIFT_DETECTORS = {}
-        self.ENSEMBLE_DRIFT_DETECTORS["EnsDisagree"] = EnsembleDisagreement.EnsembleDisagreement()
-        """
 
     def updateMetrics(self, classification, error, ensembleError, ensembleRaw, ensembleWeighted):
         self.METRICS["all_errors"].append(error)
