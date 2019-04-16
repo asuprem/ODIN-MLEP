@@ -63,16 +63,23 @@ class ADWIN(LabeledDriftDetector.LabeledDriftDetector):
         """ 
         Reset the drift detector.
 
-        Resets the DDM Drift detector. This should be called after `detect()` returns True to reset internal parameters.
+        Resets the ADWIN Drift detector. This should be called after `detect()` returns True to reset internal parameters.
 
         """
         
-        self.i = 0
-        self.pi = 1.0
-        self.si = 0.0
-        #self.pi_sd_min = float("inf")
-        self.pi_min = float("inf")
-        self.si_min = float("inf")
+        # Time is used for comparison with min_clock parameter
+        self.time = 0
+        # Current window length
+        self.window_len = 0
+        # Sum of all values in the window
+        self.window_sum = 0.0
+        # Variance of all values in the window
+        self.window_variance = 0.0
+
+        # Count of bucket row within window
+        self.bucket_row_count = 0
+        # Init bucket list
+        self.bucket_row_list = AdwinRowBucketList(self.max_buckets)
 
     def detect(self,error):
         """ 
