@@ -1,20 +1,54 @@
+# ---------- FILE TYPES ----------------------
+# Ignore python compiled files
 *.pyc
+# Ignore binary and word embedding files (generated from gensim, e.g.)
+*.bin
+# Remove IDE specific files
+.vscode
+# Ignore csv files generated from application.py
+*.csv
+# An apikey file containing an apikey
+apikey
+# Ignore in-memory sqlite database. It's actually created on-disk as well, so this line has to be added
+*memory*cache*
+
+
+# ---------- LOCAL FOLDERS (Abhijit) ----------------------
+# Ignore old code
+old/*
+# Artifacts of OneDrive on computer
+*-Suprem-*
+# Folders used during local experimentation
+outputs/
+local/
+
+
+# ----------- MLEP IGNORES -------------------------------
+# This folder is created in each execution. It stores ephemeral execution artifacts. Tracking changes here is unnecessary.
+.MLEPServer/
+# Keep __init__.py in Sources so that it's accepted as part of Git
+!config/Sources/__init__.py
+# But ignore all other files -- mainly source encoder files
+config/Sources/*
+# But ignore RawSource files. Too big for git
+config/RawSources/*
+# Configuration file generated during execution. Tracking not needed
+config/configuration/ExperimentalConfig.json
+
+
+# ------------- OTHER IGNORES ----------------------------
+# Ignore data files not used for actual execution. These include local files used to debug some parts of code, but would just pollute the git.
 data/archive/*
 data/*.json
 data/online/
 data/gooddata/
-apikey
-.MLEPServer/
-handshake/
-*.bin
-old/*
-*-Suprem-*
-*memory*cache*
-.vscode
-*.csv
-outputs/
-local/
-!config/Sources/__init__.py
-config/Sources/*
-config/RawSources/*
-config/configuration/ExperimentalConfig.json
+
+
+
+
+
+
+
+
+
+
