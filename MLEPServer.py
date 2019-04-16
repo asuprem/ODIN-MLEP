@@ -256,15 +256,11 @@ class MLEPLearningServer():
             self.ENCODERS[encoder_config["name"]] = encoderClass()
             try:
                 self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])
-            except:
-                try:
-                    self.ENCODERS[encoder_config["name"]].failCondition(
-                            **encoder_config["fail-args"])
-                    self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])
-                except:
-                    utils.std_flush("\t\tFailed setting up encoder", encoder_config["name"])
-                    pass
-
+            except IOError:
+                self.ENCODERS[encoder_config["name"]].failCondition(
+                        **encoder_config["fail-args"])
+                self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])
+                
         utils.std_flush("\tFinished setting up encoders at", utils.readable_time())
 
     def getValidPipelines(self,):
@@ -289,7 +285,7 @@ class MLEPLearningServer():
     def closeDBConnection(self,):
         try:
             self.DB_CONN.close()
-        except:
+        except sqlite3.Error:
             pass
     
     def enoughTimeElapsedBetweenUpdates(self,):

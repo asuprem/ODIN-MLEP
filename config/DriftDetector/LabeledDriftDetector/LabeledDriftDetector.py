@@ -60,8 +60,8 @@ class LabeledDriftDetector():
             classification: INT. The raw class.
 
         Returns:
-            True:   Drift has been detected
-            False:  Drift has not been detected
+            driftDetected: Bool
+                A boolean indicating if drift has been detector or not
 
         Raises:
             NotImplementedError
