@@ -17,3 +17,4 @@ local/
 !config/Sources/__init__.py
 config/Sources/*
 config/RawSources/*
+config/configuration/ExperimentalConfig.json
