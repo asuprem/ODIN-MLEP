@@ -216,11 +216,11 @@ class MLEPLearningServer():
         # These are models generated and updated in the prior update
         #self.RECENT_MODELS=[] <-- This is set up internal
         # Only generated models in prior update
-        self.RECENT_NEW = self.getNewModelsSince(self.MLEPModelTimer)
+        RECENT_NEW = self.getNewModelsSince(self.MLEPModelTimer)
         # Only update models in prior update
-        self.RECENT_UPDATES = self.getUpdateModelsSince(self.MLEPModelTimer)
+        RECENT_UPDATES = self.getUpdateModelsSince(self.MLEPModelTimer)
         # All models in prior update
-        self.RECENT_MODELS = self.getModelsSince(self.MLEPModelTimer)
+        RECENT_MODELS = self.getModelsSince(self.MLEPModelTimer)
         # All models
         self.HISTORICAL = self.getModelsSince()
         # All generated models
@@ -228,9 +228,26 @@ class MLEPLearningServer():
         # All update models
         self.HISTORICAL_UPDATES = self.getUpdateModelsSince()
 
-        if len(self.RECENT_UPDATES) == 0:
+        if len(RECENT_NEW) > 0:
+            self.RECENT_NEW = [item for item in RECENT_NEW]
+            #else fallback
+        if len(self.RECENT_NEW) == 0:
+            self.RECENT_NEW = [item for item in self.TRAIN_MODELS]
+        
+        if len(RECENT_UPDATES) > 0:
             # No update models found. Fall back on Recent New
+            self.RECENT_UPDATES = [item for item in self.RECENT_UPDATES]
+        #else fallback
+        if len(self.RECENT_UPDATES) == 0:
             self.RECENT_UPDATES = [item for item in self.RECENT_NEW]
+                
+        if len(RECENT_MODELS) > 0:
+            self.RECENT_MODELS = [item for item in RECENT_MODELS]
+            #else don't change it
+        if len(self.RECENT_MODELS) == 0:
+            self.RECENT_MODELS = list(set(self.RECENT_UPDATES + self.RECENT_NEW))
+            
+
         if len(self.HISTORICAL_UPDATES) == 0:
             # No update models found. Fall back on Historical New
             self.HISTORICAL_UPDATES = [item for item in self.HISTORICAL_NEW]
@@ -290,6 +307,9 @@ class MLEPLearningServer():
         except:
             pass
     
+    def enoughTimeElapsedBetweenUpdates(self,):
+        return abs(self.overallTimer - self.scheduledFilterGenerateUpdateTimer) > self.scheduledSchedule
+
     def updateTime(self,timerVal):
         """ Manually updating time for experimental evaluation """
 
@@ -300,11 +320,13 @@ class MLEPLearningServer():
             return
     
         # Check scheduled time difference if there need to be updates
-        if abs(self.overallTimer - self.scheduledFilterGenerateUpdateTimer) > self.scheduledSchedule:
+        if self.enoughTimeElapsedBetweenUpdates():
+            # TODO change this to check if scheduledMemoryTrack exists
             if not os.path.exists(self.SCHEDULED_DATA_FILE):
                 # Something is the issue
                 std_flush("No data for update")
                 self.scheduledFilterGenerateUpdateTimer = self.overallTimer
+                return
             else:    
                 # perform scheduled update
                 
@@ -366,10 +388,13 @@ class MLEPLearningServer():
 
         # TODO close the opened one before opening a read connection!!!!!
         if self.MEMORY_MODE == "default":
-            from config.DataModel.BatchedLocal import BatchedLocal
-            from config.DataSet.PseudoJsonTweets import PseudoJsonTweets
-
-            scheduledTrainingData = BatchedLocal(data_source=self.SCHEDULED_DATA_FILE, data_mode="single", data_set_class=PseudoJsonTweets)
+            loadModule = self.MEMORY_TRACKER.__class__.__module__
+            loadClass  = self.MEMORY_TRACKER.__class__.__name__
+            dataModelModule = __import__(loadModule, fromlist=[loadClass])
+            dataModelClass = getattr(dataModelModule, loadClass)
+            
+            # Get SCHEDULED_DATA_FILE from MEMORY_TRACK
+            scheduledTrainingData = dataModelClass(**self.MEMORY_TRACKER.__getargs__())
             scheduledTrainingData.load_by_class()
             #trainDataLength = scheduledTrainingData.all_class_sizes()
 
@@ -909,7 +934,6 @@ class MLEPLearningServer():
         
 
         # Given ensembleModelNames, use all of them as part of ensemble
-
         # Run the sqlite query to get model details
         modelDetails = self.getModelDetails(ensembleModelNames)
         if self.MLEPConfig["weight_method"] == "performance":

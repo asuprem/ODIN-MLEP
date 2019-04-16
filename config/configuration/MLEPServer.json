@@ -1,7 +1,7 @@
 {
     "config":{
-        "allow_update_schedule": false,
-        "allow_update_drift": true,
+        "allow_update_schedule": true,
+        "allow_update_drift": false,
         "drift_class":"LabeledDriftDetector",
         "drift_mode":"DDM",
 

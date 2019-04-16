@@ -28,6 +28,8 @@ class BatchedLocal(DataModel):
         self.class_data={}
         self.class_statistics={}
         self.classes=classes
+        self.num_samples = num_samples
+        self.classification_mode = classification_mode
         for _class in classes:
             self.class_data[_class] = []
             self.class_statistics[_class] = 0
@@ -141,6 +143,24 @@ class BatchedLocal(DataModel):
 
     def getNextBatchLabels(self,):
         raise NotImplementedError()
+
+    def getSource(self):
+        return self.data_source
+    def getMode(self,):
+        return self.data_mode
+    def getDataSetClass(self):
+        return self.data_set_class
+
+    """ This returns a dictionary of arguments """
+    def __getargs__(self,):
+        return {
+            "data_source":self.data_source,
+            "data_mode":self.data_mode,
+            "num_samples":self.num_samples,
+            "data_set_class":self.data_set_class,
+            "classification_mode":self.classification_mode,
+            "classes":self.classes
+        }
 
 
 
