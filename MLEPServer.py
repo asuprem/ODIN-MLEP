@@ -148,7 +148,6 @@ class MLEPLearningServer():
         self.SOURCE_DIR = "./.MLEPServer"
         self.setups = ['models', 'data', 'modelSerials', 'db']
         self.DB_FILE = './.MLEPServer/db/MLEP.db'
-        self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
         # Remove SOURCE_DIR if it already exists.
         try:
             shutil.rmtree(self.SOURCE_DIR)
@@ -277,8 +276,6 @@ class MLEPLearningServer():
         # Access the save path
         # pick.dump models to that path
         pass
-
-        
         self.closeDBConnection()
 
         
@@ -304,23 +301,13 @@ class MLEPLearningServer():
         # Check scheduled time difference if there need to be updates
         if self.enoughTimeElapsedBetweenUpdates():
             # TODO change this to check if scheduledMemoryTrack exists
-            if not os.path.exists(self.SCHEDULED_DATA_FILE):
-                # Something is the issue
-                std_flush("No data for update")
-                self.scheduledFilterGenerateUpdateTimer = self.overallTimer
-                return
-            else:    
-                # perform scheduled update
-                
-                # get samples in memory for update
-                if not self.MEMORY_TRACKER["scheduled"].hasSamples():
-                    std_flush("Attempted update at", ms_to_readable(self.overallTimer), ", but 0 data samples." )
-                    
-                else:  
-                    self.MLEPUpdate(memory_type="scheduled")
+            if not self.MEMORY_TRACKER["scheduled"].hasSamples():
+                std_flush("Attempted update at", ms_to_readable(self.overallTimer), ", but 0 data samples." ) 
+            else:  
+                self.MLEPUpdate(memory_type="scheduled")
 
-                
-                self.scheduledFilterGenerateUpdateTimer = self.overallTimer
+            
+            self.scheduledFilterGenerateUpdateTimer = self.overallTimer
     
     def MLEPUpdate(self,memory_type="scheduled"):
         std_flush("Update using", memory_type, "-memory at", ms_to_readable(self.overallTimer), "with", self.MEMORY_TRACKER[memory_type].memorySize(),"data samples." )
@@ -988,7 +975,9 @@ class MLEPLearningServer():
             # Set up default tracker for scheduledDataFile
             from config.DataModel.BatchedLocal import BatchedLocal
             from config.DataSet.PseudoJsonTweets import PseudoJsonTweets
-            self.MEMORY_TRACKER[memory_type] = BatchedLocal(data_source=self.SCHEDULED_DATA_FILE, data_mode="single", data_set_class=PseudoJsonTweets)
+            data_source = memory_type + "_memory.json"
+            data_source_path = os.path.join('./.MLEPServer/data/', data_source)
+            self.MEMORY_TRACKER[memory_type] = BatchedLocal(data_source=data_source_path, data_mode="single", data_set_class=PseudoJsonTweets)
             self.MEMORY_MODE[memory_type] = mode
             self.CLASSIFY_MODE[memory_type] = "binary"
         else:
