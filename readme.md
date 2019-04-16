@@ -38,7 +38,13 @@ Later, you can deactivate it by running:
 ```
 
 ### Installing Dependencies
-All dependencies for MLEP are declared in the file `requirements.txt`. To get started, install these
+Base dependencies for MLEP are declared in the file `minrequirements.txt`. To get started, install these
+dependencies running:
+```console
+(.env) $ pip install -r minrequirements.txt
+```
+
+You can also use  `requirements.txt` if you are feeling adventurous. To get started, install these
 dependencies running:
 ```console
 (.env) $ pip install -r requirements.txt
