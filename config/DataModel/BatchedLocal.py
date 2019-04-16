@@ -84,6 +84,8 @@ class BatchedLocal(DataModel):
                         data_source_file.write(data.serialize()+'\n')
                     self.load_memory+=1
                 except IOError:
+                    self.clear()
+                    self._clear = False
                     with open(self.data_source,"w") as data_source_file:
                         data_source_file.write(data.serialize()+'\n')
                     self.load_memory=1
@@ -93,6 +95,9 @@ class BatchedLocal(DataModel):
         """ this is to clear the BatchedLocal file. Dangerous for loading data batchedFile object, cause it will, well, delete the load data """
         """ maybe separate BatchedLocalLoader and BatchedLocalWriters..."""
         self._clear = True
+        import os
+        if os.path.exists(self.data_source):
+            os.remove(self.data_source)
         self.load_memory = 0
     
     def hasSamples(self,):

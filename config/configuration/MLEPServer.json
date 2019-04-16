@@ -1,7 +1,7 @@
 {
     "config":{
         "allow_update_schedule": true,
-        "allow_update_drift": false,
+        "allow_update_drift": true,
         "drift_class":"LabeledDriftDetector",
         "drift_mode":"DDM",
 
@@ -158,7 +158,7 @@
             "sequence": ["w2v-generic-20000", "decisiontree"],
             "type":"binary",
             "encoder": "w2v-generic-20000",
-            "valid":true
+            "valid":false
         }, 
 
         "pipelineG":{

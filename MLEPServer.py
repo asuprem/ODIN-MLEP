@@ -199,7 +199,6 @@ class MLEPLearningServer():
 
     def updateModelStore(self,):
         # These are models generated and updated in the prior update
-        #self.RECENT_MODELS=[] <-- This is set up internal
         # Only generated models in prior update
         RECENT_NEW = self.getNewModelsSince(self.MLEPModelTimer)
         # Only update models in prior update
@@ -329,7 +328,7 @@ class MLEPLearningServer():
         std_flush("Completed", memory_type, "-memory based Model generation at", readable_time())
 
         # update
-        self.update(TrainingData,models='all')
+        self.update(TrainingData,models_to_update='recent')
         std_flush("Completed", memory_type, "-memory based Model Update at", readable_time())
         self.updateModelStore()
 
@@ -434,17 +433,14 @@ class MLEPLearningServer():
 
         return precision, recall, score, model, centroid
     
-    def update(self, traindata, models='all'):
+    def update(self, traindata, models_to_update='recent'):
         # for each model in self.MODELS
         # create a copy; rename details across everything
         # update copy
         # push details to DB
-        # if copy's source is in SELF.RECENT, add it to self.RECENT as well
-
-        # TODO updated this approach because original version was exponential (YIKES!!!)
-        modelSaveNames = [modelSaveName for modelSaveName in self.RECENT_MODELS]
+        # if copy's source is in MODEL_TRACK["recent"], add it to MODEL_TRACK["recent"] as well
+        modelSaveNames = [modelSaveName for modelSaveName in self.MODEL_TRACK[models_to_update]]
         modelDetails = self.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
-        self.RECENT_UPDATES = []
         pipelineNameDict = self.getDetails(modelDetails, 'pipelineName', 'dict')
         for modelSaveName in modelSaveNames:
             # copy model
@@ -471,38 +467,46 @@ class MLEPLearningServer():
             del pipelineTrained
             # Now we save deets.
             # Some cleaning
-            
-            columns=",".join([  "modelid","parentmodel","pipelineName","timestamp","data_centroid",
+            self.insertModelToDb(modelid=modelIdentifier, parentmodelid=str(modelSaveName), pipelineName=str(currentPipeline["name"]),
+                                timestamp=timestamp, data_centroid=data_centroid, training_model=str(modelSavePath), 
+                                training_data=str(trainDataSavePath), test_data=str(testDataSavePath), precision=precision, recall=recall, score=score,
+                                _type=str(currentPipeline["type"]), active=1)
+
+
+    def insertModelToDb(self,modelid=None, parentmodelid=None, pipelineName=None,
+                                timestamp=None, data_centroid=None, training_model=None, 
+                                training_data=None, test_data=None, precision=None, recall=None, score=None,
+                                _type=None, active=1):
+        columns=",".join([  "modelid","parentmodel","pipelineName","timestamp","data_centroid",
                                 "trainingModel","trainingData","testData",
                                 "precision","recall","fscore",
                                 "type","active"])
             
-            sql = "INSERT INTO Models (%s) VALUES " % columns
-            sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?)"
-            cursor = self.DB_CONN.cursor()
-
-            
-            cursor.execute(sql, (   modelIdentifier,
-                                    str(modelSaveName),
-                                    str(currentPipeline["name"]), 
-                                    timestamp,
-                                    data_centroid,
-                                    str(modelSavePath),
-                                    str(trainDataSavePath),
-                                    str(testDataSavePath),
-                                    precision,
-                                    recall,
-                                    score,
-                                    str(currentPipeline["type"]),
-                                    1))
-            
-            self.DB_CONN.commit()
-            cursor.close()
+        sql = "INSERT INTO Models (%s) VALUES " % columns
+        sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        cursor = self.DB_CONN.cursor()
+        
+        cursor.execute(sql, (   modelid,
+                                parentmodelid,
+                                pipelineName, 
+                                timestamp,
+                                data_centroid,
+                                training_model,
+                                training_data,
+                                test_data,
+                                precision,
+                                recall,
+                                score,
+                                _type,
+                                active) )
+        
+        self.DB_CONN.commit()
+        cursor.close()
 
     # trainData is BatchedLocal
     def initialTrain(self,traindata,models= "all"):
         self.setUpInitialModels(traindata)
-        self.TRAIN_MODELS = self.getModelsSince()
+        self.MODEL_TRACK["train"] = self.getModelsSince()
         self.updateModelStore()
 
     # trainData is BatchedLocal
@@ -549,32 +553,12 @@ class MLEPLearningServer():
             del pipelineTrained
             # Now we save deets.
             # Some cleaning
-            
-            columns=",".join([  "modelid","parentmodel","pipelineName","timestamp","data_centroid",
-                                "trainingModel","trainingData","testData",
-                                "precision","recall","fscore",
-                                "type","active"])
-            
-            sql = "INSERT INTO Models (%s) VALUES " % columns
-            sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?)"
-            cursor = self.DB_CONN.cursor()
-            
-            cursor.execute(sql, (   modelIdentifier,
-                                    None,
-                                    str(currentPipeline["name"]), 
-                                    timestamp,
-                                    data_centroid,
-                                    str(modelSavePath),
-                                    str(trainDataSavePath),
-                                    str(testDataSavePath),
-                                    precision,
-                                    recall,
-                                    score,
-                                    str(currentPipeline["type"]),
-                                    1))
-            
-            self.DB_CONN.commit()
-            cursor.close()
+            self.insertModelToDb(modelid=modelIdentifier, parentmodelid=None, pipelineName=str(currentPipeline["name"]),
+                                timestamp=timestamp, data_centroid=data_centroid, training_model=str(modelSavePath), 
+                                training_data=str(trainDataSavePath), test_data=str(testDataSavePath), precision=precision, recall=recall, score=score,
+                                _type=str(currentPipeline["type"]), active=1)
+
+
 
     def train(self,traindata, models = 'all'):
         # for each modelType in modelTypes
@@ -617,31 +601,12 @@ class MLEPLearningServer():
             # Now we save deets.
             # Some cleaning
             
-            columns=",".join([  "modelid","parentmodel","pipelineName","timestamp","data_centroid",
-                                "trainingModel","trainingData","testData",
-                                "precision","recall","fscore",
-                                "type","active"])
-            
-            sql = "INSERT INTO Models (%s) VALUES " % columns
-            sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?)"
-            cursor = self.DB_CONN.cursor()
-            
-            cursor.execute(sql, (   modelIdentifier,
-                                    None,
-                                    str(currentPipeline["name"]), 
-                                    timestamp,
-                                    data_centroid,
-                                    str(modelSavePath),
-                                    str(trainDataSavePath),
-                                    str(testDataSavePath),
-                                    precision,
-                                    recall,
-                                    score,
-                                    str(currentPipeline["type"]),
-                                    1))
-            
-            self.DB_CONN.commit()
-            cursor.close()
+            self.insertModelToDb(modelid=modelIdentifier, parentmodelid=None, pipelineName=str(currentPipeline["name"]),
+                                timestamp=timestamp, data_centroid=data_centroid, training_model=str(modelSavePath), 
+                                training_data=str(trainDataSavePath), test_data=str(testDataSavePath), precision=precision, recall=recall, score=score,
+                                _type=str(currentPipeline["type"]), active=1)
+
+
     def createModelId(self, timestamp, pipelineName, fscore):
         strA = time_to_id(timestamp)
         strB = time_to_id(hash(pipelineName))
@@ -773,9 +738,6 @@ class MLEPLearningServer():
         # for tests:    if False and k_val >= len(ensembleModelNames):
         # regular       if k_val >= len(ensembleModelNames):
         if k_val >= len(ensembleModelNames):
-        
-            # ensembleModelNames = [item for item in self.HISTORICAL]
-            # because we have a prelim ensembleModelNames!!!
             pass
         else:
 
