@@ -16,72 +16,43 @@ class MLEPLearningServer():
         """
         std_flush("Initializing MLEP...")
 
-        std_flush("\tStarted configuring SQLite at", readable_time())
-        self.configureSqlite()
-        std_flush("\tFinished configuring SQLite at", readable_time())
-
-        std_flush("\tStarted loading JSON configuration file at", readable_time())
-        self.loadConfig(PATH_TO_CONFIG_FILE)
-        std_flush("\tFinished loading JSON configuration file at", readable_time())
-
-        std_flush("\tStarted initializing timers at", readable_time())
-        self.initializeTimers()
-        std_flush("\tFinished initializing timers at", readable_time())
-
-        std_flush("\tStarted setting up directory structure at", readable_time())
-        self.setupDirectoryStructure()
-        std_flush("\tFinished setting up directory structure at", readable_time())
-
-        std_flush("\tStarted setting up database connection at", readable_time())
-        self.setupDbConnection()
-        std_flush("\tFinished setting up database connection at", readable_time())
-
-        std_flush("\tStarted initializing database at", readable_time())
-        self.initializeDb()
-        std_flush("\tFinished initializing database at", readable_time())
         
-        std_flush("\tStarted setting up encoders at", readable_time())
+        self.configureSqlite()
+        self.loadConfig(PATH_TO_CONFIG_FILE)
+        self.initializeTimers()
+        self.setupDirectoryStructure()
+        self.setupDbConnection()
+        self.initializeDb()
         self.setUpEncoders()
-        std_flush("\tFinished setting up encoders at", readable_time())
-
-        std_flush("\tStarted setting up metrics tracking at", readable_time())
         self.setUpMetrics()
-        std_flush("\tFinished setting up metrics tracking at", readable_time())
-
-        # TODO -- update config to let users select drift detectors -- partially DONE
-        std_flush("\tStarted setting up drift tracker at", readable_time())
         self.setUpDriftTracker()
-        std_flush("\tFinished setting up drift tracker at", readable_time())
-
-        std_flush("\tStarted setting up memories at", readable_time())
         self.setUpMemories()
         self.memoryTrack(memory_type="scheduled", mode="default")
         self.memoryTrack(memory_type="drift", mode="default")
-        std_flush("\tFinished setting up memories at", readable_time())
-
+        self.setUpModelTracker()
 
         # Setting of 'hosted' models + data cetroids
         self.MODELS = {}
         self.CENTROIDS={}
 
-        # These are models generated and updated in the prior update
-        self.RECENT_MODELS=[]
-        # Only generated models in prior update
-        self.RECENT_NEW = []
-        # Only update models in prior update
-        self.RECENT_UPDATES = []
-        # All models
-        self.HISTORICAL = []
-        # All generated models
-        self.HISTORICAL_NEW = []
-        # All update models
-        self.HISTORICAL_UPDATES = []
-        # Just the initial models
-        self.TRAIN_MODELS = []
-
         # Augmenter
         self.AUGMENT = None
 
+
+    def setUpModelTracker(self,):
+        std_flush("\tStarted setting up model tracking at", readable_time())
+        
+        self.MODEL_TRACK = {}
+        self.MODEL_TRACK["recent"] = []
+        self.MODEL_TRACK["recent-new"] = []
+        self.MODEL_TRACK["recent-new"] = []
+        self.MODEL_TRACK["recent-updates"] = []
+        self.MODEL_TRACK["historical"] = []
+        self.MODEL_TRACK["historical-new"] = []
+        self.MODEL_TRACK["historical-updates"] = []
+        self.MODEL_TRACK["train"] = []
+
+        std_flush("\tFinished setting up model tracking at", readable_time())
 
     def updateMetrics(self, classification, error, ensembleError, ensembleRaw, ensembleWeighted):
         self.METRICS["all_errors"].append(error)
@@ -93,6 +64,8 @@ class MLEPLearningServer():
 
 
     def setUpMetrics(self,):
+        std_flush("\tStarted setting up metrics tracking at", readable_time())
+
         self.METRICS={}
         self.METRICS["all_errors"] = []
         self.METRICS['classification'] = None
@@ -101,7 +74,12 @@ class MLEPLearningServer():
         self.METRICS['ensembleWeighted'] = []
         self.METRICS['ensembleError'] = []
 
+        std_flush("\tFinished setting up metrics tracking at", readable_time())
+
+
     def setUpDriftTracker(self,):
+
+        std_flush("\tStarted setting up drift tracker at", readable_time())
         driftTracker = self.MLEPConfig["drift_mode"]
         driftModule = self.MLEPConfig["drift_class"]
         driftArgs = self.MLEPConfig["drift_args"] if "drift_args" in self.MLEPConfig else {}
@@ -109,27 +87,40 @@ class MLEPLearningServer():
         driftTrackerClass = getattr(driftModuleImport,driftTracker)
         self.DRIFT_TRACKER = driftTrackerClass(**driftArgs)
 
+        std_flush("\tFinished setting up drift tracker at", readable_time())
+
 
     def configureSqlite(self):
         """Configure SQLite to convert numpy arrays to TEXT when INSERTing, and TEXT back to numpy
         arrays when SELECTing."""
+        std_flush("\tStarted configuring SQLite at", readable_time())
+
         import numpy as np
         sqlite3.register_adapter(np.ndarray, adapt_array)
         sqlite3.register_converter("array", convert_array)
+
+        std_flush("\tFinished configuring SQLite at", readable_time())
+
 
     def loadConfig(self, config_path):
         """Load JSON configuration file and initialize attributes.
 
         config_path -- [str] Path to the JSON configuration file.
         """
+        std_flush("\tStarted loading JSON configuration file at", readable_time())
+
         self.config = self.load_json(config_path)
         self.MLEPConfig = self.config["config"]
         self.MLEPModels = self.config["models"]
         self.MLEPPipelines = self.getValidPipelines()
         self.MLEPEncoders = self.getValidEncoders()
 
+        std_flush("\tFinished loading JSON configuration file at", readable_time())
+
     def initializeTimers(self):
         """Initialize time attributes."""
+        std_flush("\tStarted initializing timers at", readable_time())
+
         # Internal clock of the server.
         self.overallTimer = None
         # Internal clock of the models.
@@ -140,9 +131,12 @@ class MLEPLearningServer():
         # days.
         self.scheduledSchedule = self.MLEPConfig.get("update_schedule", 86400000 * 30)
 
+        std_flush("\tFinished initializing timers at", readable_time())
+
     def setupDirectoryStructure(self):
         """Set up directory structure."""
-        
+        std_flush("\tStarted setting up directory structure at", readable_time())
+
         import shutil
         
         self.SOURCE_DIR = "./.MLEPServer"
@@ -158,8 +152,12 @@ class MLEPLearningServer():
         for directory in self.setups:
             os.makedirs(os.path.join(self.SOURCE_DIR, directory))
 
+        std_flush("\tFinished setting up directory structure at", readable_time())
+
     def setupDbConnection(self):
         """Set up connection to a SQLite database."""
+        std_flush("\tStarted setting up database connection at", readable_time())
+            
         self.DB_CONN = None
         try:
             self.DB_CONN = sqlite3.connect(self.DB_FILE, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -167,8 +165,12 @@ class MLEPLearningServer():
             # TODO handle these
             print(e)
 
+        std_flush("\tFinished setting up database connection at", readable_time())
+
     def initializeDb(self):
         """Create tables in a SQLite database."""
+
+        std_flush("\tStarted initializing database at", readable_time())
         cursor = self.DB_CONN.cursor()
         cursor.execute("""Drop Table IF EXISTS Models""")
         cursor.execute("""
@@ -193,6 +195,8 @@ class MLEPLearningServer():
         self.DB_CONN.commit()
         cursor.close()
 
+        std_flush("\tFinished initializing database at", readable_time())
+
     def updateModelStore(self,):
         # These are models generated and updated in the prior update
         #self.RECENT_MODELS=[] <-- This is set up internal
@@ -203,45 +207,48 @@ class MLEPLearningServer():
         # All models in prior update
         RECENT_MODELS = self.getModelsSince(self.MLEPModelTimer)
         # All models
-        self.HISTORICAL = self.getModelsSince()
+        self.MODEL_TRACK["historical"] = self.getModelsSince()
         # All generated models
-        self.HISTORICAL_NEW = self.getNewModelsSince()
+        self.MODEL_TRACK["historical-new"] = self.getNewModelsSince()
         # All update models
-        self.HISTORICAL_UPDATES = self.getUpdateModelsSince()
+        self.MODEL_TRACK["historical-updates"] = self.getUpdateModelsSince()
 
         if len(RECENT_NEW) > 0:
-            self.RECENT_NEW = [item for item in RECENT_NEW]
+            self.MODEL_TRACK["recent-new"] = [item for item in RECENT_NEW]
             #else fallback
-        if len(self.RECENT_NEW) == 0:
-            self.RECENT_NEW = [item for item in self.TRAIN_MODELS]
+        if len(self.MODEL_TRACK["recent-new"]) == 0:
+            self.MODEL_TRACK["recent-new"] = [item for item in self.MODEL_TRACK["train"]]
         
         if len(RECENT_UPDATES) > 0:
-            # No update models found. Fall back on Recent New
-            self.RECENT_UPDATES = [item for item in self.RECENT_UPDATES]
+            self.MODEL_TRACK["recent-updates"] = [item for item in RECENT_UPDATES]
         #else fallback
-        if len(self.RECENT_UPDATES) == 0:
-            self.RECENT_UPDATES = [item for item in self.RECENT_NEW]
+        if len(self.MODEL_TRACK["recent-updates"]) == 0:
+            self.MODEL_TRACK["recent-updates"] = [item for item in self.MODEL_TRACK["recent-new"]]
                 
         if len(RECENT_MODELS) > 0:
-            self.RECENT_MODELS = [item for item in RECENT_MODELS]
+            self.MODEL_TRACK["recent"] = [item for item in RECENT_MODELS]
             #else don't change it
-        if len(self.RECENT_MODELS) == 0:
-            self.RECENT_MODELS = list(set(self.RECENT_UPDATES + self.RECENT_NEW))
+        if len(self.MODEL_TRACK["recent"]) == 0:
+            self.MODEL_TRACK["recent"] = list(set(self.MODEL_TRACK["recent-updates"] + self.MODEL_TRACK["recent-new"]))
             
 
-        if len(self.HISTORICAL_UPDATES) == 0:
+        if len(self.MODEL_TRACK["historical-updates"]) == 0:
             # No update models found. Fall back on Historical New
-            self.HISTORICAL_UPDATES = [item for item in self.HISTORICAL_NEW]
+            self.MODEL_TRACK["historical-updates"] = [item for item in self.MODEL_TRACK["historical-new"]]
         
         # Update Model Timer
         self.MLEPModelTimer = time.time()
 
-        std_flush("New Models: ", self.RECENT_NEW)
-        std_flush("Update Models: ", self.RECENT_UPDATES)
+        std_flush("New Models: ", self.MODEL_TRACK["recent-new"])
+        std_flush("Update Models: ", self.MODEL_TRACK["recent-updates"])
 
 
     def setUpEncoders(self):
         """Set up built-in encoders (Google News w2v)."""
+
+        std_flush("\tStarted setting up encoders at", readable_time())
+
+            
         self.ENCODERS = {}
         for _ , encoder_config in self.MLEPEncoders.items():
             std_flush("\t\tSetting up encoder", encoder_config["name"], "at", readable_time())
@@ -260,6 +267,8 @@ class MLEPLearningServer():
                 except:
                     std_flush("\t\tFailed setting up encoder", encoder_config["name"])
                     pass
+
+        std_flush("\tFinished setting up encoders at", readable_time())
 
     def getValidPipelines(self,):
         """ get pipelines that are, well, valid """
@@ -737,24 +746,8 @@ class MLEPLearningServer():
         return dictResults
     
     def getValidModels(self):
-        if self.MLEPConfig["select_method"] == "recent":
-            # Step one - get list of model ids
-            ensembleModelNames = [item for item in self.RECENT_MODELS]
-        elif self.MLEPConfig["select_method"] == "recent-new":
-            ensembleModelNames = [item for item in self.RECENT_NEW]
-        elif self.MLEPConfig["select_method"] == "recent-updates":
-            ensembleModelNames = [item for item in self.RECENT_UPDATES]
-        elif self.MLEPConfig["select_method"] == "train":
-            ensembleModelNames = [item for item in self.TRAIN_MODELS]
-        elif self.MLEPConfig["select_method"] == "historical":
-            ensembleModelNames = [item for item in self.HISTORICAL]
-        elif self.MLEPConfig["select_method"] == "historical-new":
-            ensembleModelNames = [item for item in self.HISTORICAL_NEW]
-        elif self.MLEPConfig["select_method"] == "historical-updates":
-            ensembleModelNames = [item for item in self.HISTORICAL_UPDATES]
-        else:
-            #recent-new
-            ensembleModelNames = [item for item in self.RECENT_NEW]
+        
+        ensembleModelNames = [item for item in self.MODEL_TRACK[self.MLEPConfig["select_method"]]]
         return ensembleModelNames
     
     def getTopKPerformanceModels(self,ensembleModelNames):
@@ -966,11 +959,15 @@ class MLEPLearningServer():
 
 
     def setUpMemories(self,):
+
+        std_flush("\tStarted setting up memories at", readable_time())
         self.MEMORY_TRACKER = {}
         self.MEMORY_MODE = {}
         self.CLASSIFY_MODE = {}
+        std_flush("\tFinished setting up memories at", readable_time())
 
     def memoryTrack(self,memory_type = "scheduled", mode="default"):
+        std_flush("\tStarted setting up", memory_type, "memory at" , readable_time())
         if mode == "default":
             # Set up default tracker for scheduledDataFile
             from config.DataModel.BatchedLocal import BatchedLocal
@@ -982,6 +979,7 @@ class MLEPLearningServer():
             self.CLASSIFY_MODE[memory_type] = "binary"
         else:
             raise NotImplementedError()
+        std_flush("\tFinished setting up", memory_type, "memory at" , readable_time())
 
     # data is a dataset object
     def addToMemory(self,memory_type, data):
