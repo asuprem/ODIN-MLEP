@@ -72,7 +72,7 @@ class LearningModel:
         
         try:
             return self._model.predict(X)
-        except:
+        except ValueError:
             return self._model.predict(X.reshape(1,-1))
 
     def precision_recall_fscore(self, X, y):
