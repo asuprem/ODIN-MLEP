@@ -62,6 +62,20 @@ def main(experimentname, update, weights, select, filter, kval):
     with open('data/data/initialTrainingData.json','r') as data_file:
         for line in data_file:
             trainingData.append(json.loads(line.strip()))
+
+
+    # Let's consider three data delivery models:
+    #   - Batched
+    #   - Streaming (single example)
+    #   - Streaming batched (multiple examples at once)
+
+    # We also have multiple data models - how a single piece of data is delivered:
+    #   - TextPseudoJsonModel 
+    #   - ImageModel
+    #   - VideoModel
+    #   - NumericModel
+    # Each model has these required methods
+    #   
     
     # Now we have the data
     MLEPLearner = MLEPLearningServer(PATH_TO_CONFIG_FILE)
@@ -69,6 +83,10 @@ def main(experimentname, update, weights, select, filter, kval):
 
     # Train with raw training data (for now)
     # Assumptions - there is a 'text' field; assume we have access to a w2v encoder
+
+    # We'll pass a training data model...
+    # datamodel is a streaming data model??? --> look at streaming in sci-kit multiflow
+
     MLEPLearner.initialTrain(traindata=trainingData)
     std_flush("Completed training at", readable_time())
     MLEPLearner.addNegatives(negatives)

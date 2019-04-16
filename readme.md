@@ -13,15 +13,17 @@ both working on improving code modularity, documentation, and testing.
 
 This readme is the most up-to-date set of instructions. However, the most up-to-date stable code release is 0.4. You can download it from the Releases tab or from [here](https://github.com/asuprem/MLEP/releases).
 
+Regarding support files, for release 0.4, you will only need `w2v-wiki-wikipedia-20000.bin*` (and associated .npy files) in ./config/Sources/. For details, please read the **Downloading Support Files** section in the **word2vec (Wikipedia)** from [here](https://drive.google.com/open?id=1SL21I_FYOoDYuq77i4TRY1WDJhlZgy36). Please read through the **Downloading Support Files** section nevertheless.
+
 ## Quick start
 ### Creating a Python Virtual Environment
 The main purpose of using a Python virtual environment is to create an isolated environment for
 MLEP. This means that it can separately install its own dependencies, regardless of what package
 versions are installed in your system.
 
-Create a new Python virtual environment in directory `.env`:
+Create a new Python2.7 virtual environment in directory `.env`:
 ```console
-$ python3 -m venv .env
+$ python -m venv .env
 ```
 
 Now we need to activate the newly created virtual environment, setting up your shell to use it by
@@ -49,18 +51,18 @@ Unit tests are (still) being written and merged to the repo.
 ### Downloading Support Files
 MLEP is designed to work out-of-the-box in most scenarios. However, there are some built-in files
 you may need to download:
-* Bag of Words: Text file to generate the Bag-of-Words model. We have provided a default
+* **Bag of Words**: Text file to generate the Bag-of-Words model. We have provided a default
 version [here](https://drive.google.com/open?id=1xxnAGya_gYxgGuKk7FRZ1s07uACBXgeU). You will need to
 move this file `bow.txt` into `./config/RawSources`. We have also provided a pre-built encoder file
 [here](https://drive.google.com/open?id=1lKjFcgwtyMTEDCpAr-7Oc-zmfp-G7gWh) (not required, as the
 encoder will generate it if missing). If you opt to download it, you will also need to move this
 file `bow.model` file into `./config/Sources/`.
-* word2vec (Google News): File containing pre-trained vectors built from Google News to be used
+* **word2vec (Google News)**: File containing pre-trained vectors built from Google News to be used
 by a word2vec encoder. We have provided a default version
 [here](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit). You will need to extract
 the file with extension `.bin` and move in into `./config/Sources/`. Also, rename it to
 `GoogleNews-vectors-negative300.bin`.
-* word2vec (Wikipedia): You must download a file containing a list of Wikipedia titles to be used by a word2vec encoder from
+* **word2vec (Wikipedia)**: You must download a file containing a list of Wikipedia titles to be used by a word2vec encoder from
 [here](https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-all-titles-in-ns0.gz). You will need
 to extract the archive and move this file into `./config/RawSources/`. Also, rename it to
 `enwiki-latest-all-titles-in-ns0`. To speed up the encoder generation, we have provided additional
