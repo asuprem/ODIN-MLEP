@@ -60,10 +60,14 @@ class MLEPLearningServer():
         self.setUpDriftTracker()
         std_flush("\tFinished setting up drift tracker at", readable_time())
 
+        std_flush("\tStarted setting up memories at", readable_time())
+        self.memoryTrack(mode="default")
+        std_flush("\tFinished setting up memories at", readable_time())
+
+
         # Setting of 'hosted' models + data cetroids
         self.MODELS = {}
         self.CENTROIDS={}
-        self.METRICS={}
 
         # These are models generated and updated in the prior update
         self.RECENT_MODELS=[]
@@ -80,10 +84,8 @@ class MLEPLearningServer():
         # Just the initial models
         self.TRAIN_MODELS = []
 
-        # memoryTracker
-        self.MEMORY_TRACKER=None
+        # Augmenter
         self.AUGMENT = None
-        self.ERRORS = []
 
         
         """
@@ -210,6 +212,36 @@ class MLEPLearningServer():
         self.DB_CONN.commit()
         cursor.close()
 
+    def updateModelStore(self,):
+        # These are models generated and updated in the prior update
+        #self.RECENT_MODELS=[] <-- This is set up internal
+        # Only generated models in prior update
+        self.RECENT_NEW = self.getNewModelsSince(self.MLEPModelTimer)
+        # Only update models in prior update
+        self.RECENT_UPDATES = self.getUpdateModelsSince(self.MLEPModelTimer)
+        # All models in prior update
+        self.RECENT_MODELS = self.getModelsSince(self.MLEPModelTimer)
+        # All models
+        self.HISTORICAL = self.getModelsSince()
+        # All generated models
+        self.HISTORICAL_NEW = self.getNewModelsSince()
+        # All update models
+        self.HISTORICAL_UPDATES = self.getUpdateModelsSince()
+
+        if len(self.RECENT_UPDATES) == 0:
+            # No update models found. Fall back on Recent New
+            self.RECENT_UPDATES = [item for item in self.RECENT_NEW]
+        if len(self.HISTORICAL_UPDATES) == 0:
+            # No update models found. Fall back on Historical New
+            self.HISTORICAL_UPDATES = [item for item in self.HISTORICAL_NEW]
+        
+        # Update Model Timer
+        self.MLEPModelTimer = time.time()
+
+        std_flush("New Models: ", self.RECENT_NEW)
+        std_flush("Update Models: ", self.RECENT_UPDATES)
+
+
     def setUpEncoders(self):
         """Set up built-in encoders (Google News w2v)."""
         self.ENCODERS = {}
@@ -291,6 +323,7 @@ class MLEPLearningServer():
                     # In those cases, MLEPServer needs methods for proper data access given domain, as well as proper augmeentation policies
                     # Here, though, we follow KISS - Keep It Simple, Silly, and assume single type of data. We also assume data format (big NO NO)
                     scheduledTrainingData = self.getScheduledTrainingData()
+                    self.clearMemory()
                     
                     # scheduledTrainingData is a BatchedLocal...
 
@@ -305,34 +338,8 @@ class MLEPLearningServer():
 
                     std_flush("Generated the following models: ", self.RECENT_MODELS)
 
-                # These are models generated and updated in the prior update
-                #self.RECENT_MODELS=[] <-- This is set up internal
-                # Only generated models in prior update
-                self.RECENT_NEW = self.getNewModelsSince(self.MLEPModelTimer)
-                # Only update models in prior update
-                self.RECENT_UPDATES = self.getUpdateModelsSince(self.MLEPModelTimer)
-                # All models in prior update
-                self.RECENT_MODELS = self.getModelsSince(self.MLEPModelTimer)
-                # All models
-                self.HISTORICAL = self.getModelsSince()
-                # All generated models
-                self.HISTORICAL_NEW = self.getNewModelsSince()
-                # All update models
-                self.HISTORICAL_UPDATES = self.getUpdateModelsSince()
-
-                if len(self.RECENT_UPDATES) == 0:
-                    # No update models found. Fall back on Recent New
-                    self.RECENT_UPDATES = [item for item in self.RECENT_NEW]
-                if len(self.HISTORICAL_UPDATES) == 0:
-                    # No update models found. Fall back on Historical New
-                    self.HISTORICAL_UPDATES = [item for item in self.HISTORICAL_NEW]
+                self.updateModelStore()
                 
-                # Update Model Timer
-                self.MLEPModelTimer = time.time()
-
-                std_flush("New Models: ", self.RECENT_NEW)
-                std_flush("Update Models: ", self.RECENT_UPDATES)
-
                 
                 self.scheduledFilterGenerateUpdateTimer = self.overallTimer
                 
@@ -512,6 +519,7 @@ class MLEPLearningServer():
     def initialTrain(self,traindata,models= "all"):
         self.setUpInitialModels(traindata)
         self.TRAIN_MODELS = self.getModelsSince()
+        self.updateModelStore()
 
     # trainData is BatchedLocal
     def setUpInitialModels(self,traindata, models = 'all'):
@@ -845,7 +853,6 @@ class MLEPLearningServer():
                 # So w2v cosine_similarity is between 0 and 1
                 # BUT, bow distance is, well, distance. It might be any value
                 # Allright, need to 
-                #pdb.set_trace()
                 #np.linalg.norm(_encodedData-self.CENTROIDS[item[0]])
                 kClosestPerEncoder[_encoder]=[(self.ENCODERS[_encoder].getDistance(_encodedData, self.CENTROIDS[item[0]]), item[1], item[0]) for item in encoderToModel[_encoder] if item[0] in ensembleModelNamesValid]
                 # Default sort on first param (norm); sort on distance - smallest to largest
@@ -905,7 +912,6 @@ class MLEPLearningServer():
 
         # Run the sqlite query to get model details
         modelDetails = self.getModelDetails(ensembleModelNames)
-            
         if self.MLEPConfig["weight_method"] == "performance":
             # request DB for performance (f-score)
             weights = self.getDetails(modelDetails, 'fscore', 'list', order=ensembleModelNames)
@@ -955,7 +961,6 @@ class MLEPLearningServer():
             ensembleWeighted[idx] = float(weights[idx]*cls_)
             ensembleRaw[idx] = float(cls_)
 
-        #pdb.set_trace()
         # Assume binary. We'll deal with others later
         classification = sum(ensembleWeighted)
         classification =  0 if classification < 0.5 else 1
@@ -972,8 +977,10 @@ class MLEPLearningServer():
 
         # send the input appropriate for the drift mode
         # shuld be updated to be more readble; update so that users can define their own drift tracking method
-        driftDetected = self.DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["driftInput"][self.MLEPConfig["drift_mode"]]])
-        
+        driftDetected = self.DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["drift_input"][self.MLEPConfig["drift_mode"]]])
+        if driftDetected:
+            std_flush(self.MLEPConfig["drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
+            self.DRIFT_TRACKER.reset()
         # perform drift update (big whoo)
             
 
@@ -1043,23 +1050,14 @@ class MLEPPredictionServer():
         self.SOURCE_DIR = './.MLEPServer'
         self.setups = ['models', 'data', 'modelSerials', 'db']
         
-        self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
-        self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
+        #self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
+        #self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
 
     def classify(self,data, MLEPLearner):
         # sve data item to scheduledDataFile
         """
         TODO predictor should get access to which DataModel approach to use to save the data...
 
-        """
-
-        """
-        try:
-            pdb.set_trace()
-            self.SCHEDULED_DATA_FILE_OPERATOR.write(json.dumps(data)+'\n')
-        except:
-            self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
-            self.SCHEDULED_DATA_FILE_OPERATOR.write(json.dumps(data)+'\n')
         """
         return MLEPLearner.classify(data)
             

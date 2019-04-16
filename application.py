@@ -98,7 +98,6 @@ def main(experimentname, update, weights, select, filter, kval):
     # datamodel is a streaming data model??? --> look at streaming in sci-kit multiflow
 
     MLEPLearner.initialTrain(traindata=trainingData)
-    MLEPLearner.memoryTrack("default")
     std_flush("Completed training at", readable_time())
     MLEPLearner.addAugmentation(augmentation)
 
