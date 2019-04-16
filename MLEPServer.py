@@ -176,8 +176,6 @@ class MLEPLearningServer():
         os.makedirs(self.SOURCE_DIR)
         for directory in self.setups:
             os.makedirs(os.path.join(self.SOURCE_DIR, directory))
-        # Create scheduled file.
-        self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
 
     def setupDbConnection(self):
         """Set up connection to a SQLite database."""
@@ -338,20 +336,11 @@ class MLEPLearningServer():
                 else:  
                     std_flush("Scheduled update at", ms_to_readable(self.overallTimer), "with", self.MEMORY_TRACKER["scheduled"].memorySize(),"data samples." )
                     
-                    # TODO This is also a simplification in this implementation
-                    # Normally, MLEPServer will use specialized data access routines
-                    # So a user should write how to access data, and specify data format. For example, our data exists as lines in a file.
-                    # Other data may exist as images in folders (a la common kaggle cat-dog datasets, etc)
-                    # Other data may need to be streamed from somewhere
-                    # In those cases, MLEPServer needs methods for proper data access given domain, as well as proper augmeentation policies
-                    # Here, though, we follow KISS - Keep It Simple, Silly, and assume single type of data. We also assume data format (big NO NO)
-                    scheduledTrainingData = self.getScheduledTrainingData()
-                    self.clearMemory("scheduled")
+                    # Get the scheduled training data from Memory
+                    scheduledTrainingData = self.getTrainingData(memory_type="scheduled")
+                    self.clearMemory(memory_type="scheduled")
                     
-                    # scheduledTrainingData is a BatchedLocal...
-
                     # Scheduled Generate
-                    # TODO -- set up 
                     self.train(scheduledTrainingData)
                     std_flush("Completed Scheduled Model generation at", readable_time())
 
@@ -359,23 +348,10 @@ class MLEPLearningServer():
                     self.update(scheduledTrainingData,models='all')
                     std_flush("Completed Scheduled Model Update at", readable_time())
 
-                    std_flush("Generated the following models: ", self.RECENT_MODELS)
-
                 self.updateModelStore()
-                
-                
                 self.scheduledFilterGenerateUpdateTimer = self.overallTimer
                 
-                # delete file
-                '''
-                try:
-                    os.remove(self.SCHEDULED_DATA_FILE)
-                except:
-                    pass
-                '''
-                self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
-
-    def getScheduledTrainingData(self):
+    def getTrainingData(self, memory_type="scheduled"):
         """ Get the data in self.SCHEDULED_DATA_FILE """
 
         # need to load it as  BatchedModel...
@@ -388,19 +364,19 @@ class MLEPLearningServer():
         scheduledTrainingData = None
 
         # TODO close the opened one before opening a read connection!!!!!
-        if self.MEMORY_MODE["scheduled"] == "default":
-            loadModule = self.MEMORY_TRACKER["scheduled"].__class__.__module__
-            loadClass  = self.MEMORY_TRACKER["scheduled"].__class__.__name__
+        if self.MEMORY_MODE[memory_type] == "default":
+            loadModule = self.MEMORY_TRACKER[memory_type].__class__.__module__
+            loadClass  = self.MEMORY_TRACKER[memory_type].__class__.__name__
             dataModelModule = __import__(loadModule, fromlist=[loadClass])
             dataModelClass = getattr(dataModelModule, loadClass)
             
             # Get SCHEDULED_DATA_FILE from MEMORY_TRACK
-            scheduledTrainingData = dataModelClass(**self.MEMORY_TRACKER["scheduled"].__getargs__())
+            scheduledTrainingData = dataModelClass(**self.MEMORY_TRACKER[memory_type].__getargs__())
             scheduledTrainingData.load_by_class()
             #trainDataLength = scheduledTrainingData.all_class_sizes()
 
 
-            if self.CLASSIFY_MODE["scheduled"] == "binary":
+            if self.CLASSIFY_MODE[memory_type] == "binary":
                 negDataLength = scheduledTrainingData.class_size(0)
                 posDataLength = scheduledTrainingData.class_size(1)
                 if negDataLength < 0.8*posDataLength:
@@ -914,7 +890,7 @@ class MLEPLearningServer():
         # data has a Label... we don't deal with it just yet
         # save to scheduledDataFile
         #data is DataSet -- PseudoJson
-        self.addToMemory("scheduled", data)
+        self.addToMemory(memory_type="scheduled", data=data)
         # First set up list of correct models
         ensembleModelNames = self.getValidModels()
         # Now that we have collection of candidaate models, we use filter_select to decide how to choose the right model
@@ -1078,8 +1054,6 @@ class MLEPPredictionServer():
         self.SOURCE_DIR = './.MLEPServer'
         self.setups = ['models', 'data', 'modelSerials', 'db']
         
-        #self.SCHEDULED_DATA_FILE = './.MLEPServer/data/scheduledFile.json'
-        #self.SCHEDULED_DATA_FILE_OPERATOR = open(self.SCHEDULED_DATA_FILE, 'a')
 
     def classify(self,data, MLEPLearner):
         # sve data item to scheduledDataFile
