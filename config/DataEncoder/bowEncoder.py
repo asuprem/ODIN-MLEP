@@ -10,12 +10,14 @@ class bowEncoder(DataEncoder.DataEncoder):
         from sklearn.externals import joblib
         from sklearn.metrics.pairwise import cosine_similarity
         from numpy import squeeze, asarray
-        
+        import os
         self.squeeze =  squeeze
         self.asarray = asarray
         self.cosine_similarity = cosine_similarity
 
         modelFilePath = "config/Sources/" + modelFileName
+        if not os.path.exists(modelFilePath):
+            raise IOError(self.modelFilePath + " not found."))
         self.model = joblib.load(modelFilePath)
         
     def encode(self, data):

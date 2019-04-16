@@ -46,13 +46,15 @@ class StreamLocal(DataModel.DataModel):
         
     def next(self,):
         try:
-            self.data_ = self.data[self.idx].getData()
-            self.label_ = self.data[self.idx].getLabel()
             self.object_ = self.data[self.idx]
-            self.idx+=1
-            return True
-        except:
+        except IndexError:
             return False
+
+        self.data_ = self.object_.getData()
+        self.label_ = self.object_.getLabel()
+        self.idx+=1
+        return True
+        
         
 
     

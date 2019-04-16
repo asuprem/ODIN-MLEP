@@ -25,7 +25,8 @@ class w2vGeneric(DataEncoder.DataEncoder):
 
         from sklearn.metrics.pairwise import cosine_similarity
         from numpy import squeeze, asarray
-        
+        import os
+
         self.squeeze =  squeeze
         self.asarray = asarray
         self.cosine_similarity = cosine_similarity
@@ -35,6 +36,8 @@ class w2vGeneric(DataEncoder.DataEncoder):
         self.tokenize = tokenize
         
         self.modelPath = "./config/Sources/" + modelPath
+        if not os.path.exists(self.modelPath):
+            raise IOError(self.modelPath + " not found.")
         if trainMode == "C":
             self.model = KeyedVectors.load_word2vec_format(self.modelPath, binary=binary, unicode_errors=unicode_errors, limit=limit)
         else:
@@ -116,18 +119,15 @@ class w2vGeneric(DataEncoder.DataEncoder):
             
             #Now articleTitleNames has list of wikipedia titles. We have to download these, and create td-idf matrix from their texts
             while len(listOfWikiPages) < int(dimensionSize):
-                try:
-                    _title = random.randint(0, len(articleTitleNames)-1)
-                    _title = articleTitleNames[_title].strip()
-                    if _title in listOfWikiTitles:
-                        continue
-                    wiki_text = wikipedia.page(_title)
-                    if len(wiki_text.content.split(' ')) < 100:
-                            continue
-                    listOfWikiTitles[_title] = 1
-                    listOfWikiPages.append(wiki_text.content)
-                except:
+                _title = random.randint(0, len(articleTitleNames)-1)
+                _title = articleTitleNames[_title].strip()
+                if _title in listOfWikiTitles:
                     continue
+                wiki_text = wikipedia.page(_title)
+                if len(wiki_text.content.split(' ')) < 100:
+                        continue
+                listOfWikiTitles[_title] = 1
+                listOfWikiPages.append(wiki_text.content)
             with open(wikipagesFilePath, 'wb') as wikipagesFileName:
                 pickle.dump([listOfWikiPages, listOfWikiTitles], wikipagesFileName)
         else:
