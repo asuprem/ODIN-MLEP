@@ -61,6 +61,7 @@ class MLEPLearningServer():
         std_flush("\tFinished setting up drift tracker at", readable_time())
 
         std_flush("\tStarted setting up memories at", readable_time())
+        self.setUpMemories()
         self.memoryTrack(mode="default")
         std_flush("\tFinished setting up memories at", readable_time())
 
@@ -331,11 +332,11 @@ class MLEPLearningServer():
                 # perform scheduled update
                 
                 # get samples in memory for update
-                if not self.MEMORY_TRACKER.hasSamples():
+                if not self.MEMORY_TRACKER["scheduled"].hasSamples():
                     std_flush("Attempted update at", ms_to_readable(self.overallTimer), ", but 0 data samples." )
                     
                 else:  
-                    std_flush("Scheduled update at", ms_to_readable(self.overallTimer), "with", self.MEMORY_TRACKER.memorySize(),"data samples." )
+                    std_flush("Scheduled update at", ms_to_readable(self.overallTimer), "with", self.MEMORY_TRACKER["scheduled"].memorySize(),"data samples." )
                     
                     # TODO This is also a simplification in this implementation
                     # Normally, MLEPServer will use specialized data access routines
@@ -345,7 +346,7 @@ class MLEPLearningServer():
                     # In those cases, MLEPServer needs methods for proper data access given domain, as well as proper augmeentation policies
                     # Here, though, we follow KISS - Keep It Simple, Silly, and assume single type of data. We also assume data format (big NO NO)
                     scheduledTrainingData = self.getScheduledTrainingData()
-                    self.clearMemory()
+                    self.clearMemory("scheduled")
                     
                     # scheduledTrainingData is a BatchedLocal...
 
@@ -388,13 +389,13 @@ class MLEPLearningServer():
 
         # TODO close the opened one before opening a read connection!!!!!
         if self.MEMORY_MODE == "default":
-            loadModule = self.MEMORY_TRACKER.__class__.__module__
-            loadClass  = self.MEMORY_TRACKER.__class__.__name__
+            loadModule = self.MEMORY_TRACKER["scheduled"].__class__.__module__
+            loadClass  = self.MEMORY_TRACKER["scheduled"].__class__.__name__
             dataModelModule = __import__(loadModule, fromlist=[loadClass])
             dataModelClass = getattr(dataModelModule, loadClass)
             
             # Get SCHEDULED_DATA_FILE from MEMORY_TRACK
-            scheduledTrainingData = dataModelClass(**self.MEMORY_TRACKER.__getargs__())
+            scheduledTrainingData = dataModelClass(**self.MEMORY_TRACKER["scheduled"].__getargs__())
             scheduledTrainingData.load_by_class()
             #trainDataLength = scheduledTrainingData.all_class_sizes()
 
@@ -913,7 +914,7 @@ class MLEPLearningServer():
         # data has a Label... we don't deal with it just yet
         # save to scheduledDataFile
         #data is DataSet -- PseudoJson
-        self.addToMemory(data)
+        self.addToMemory("scheduled", data)
         # First set up list of correct models
         ensembleModelNames = self.getValidModels()
         # Now that we have collection of candidaate models, we use filter_select to decide how to choose the right model
@@ -1046,25 +1047,28 @@ class MLEPLearningServer():
     
 
 
+    def setUpMemories(self,):
+        self.MEMORY_TRACKER = {}
+        self.MEMORY_MODE = {}
+        self.CLASSIFY_MODE = {}
 
-
-    def memoryTrack(self,mode="default"):
+    def memoryTrack(self,memory_type = "scheduled", mode="default"):
         if mode == "default":
             # Set up default tracker for scheduledDataFile
             from config.DataModel.BatchedLocal import BatchedLocal
             from config.DataSet.PseudoJsonTweets import PseudoJsonTweets
-            self.MEMORY_TRACKER = BatchedLocal(data_source=self.SCHEDULED_DATA_FILE, data_mode="single", data_set_class=PseudoJsonTweets)
-            self.MEMORY_MODE = mode
-            self.CLASSIFY_MODE = "binary"
+            self.MEMORY_TRACKER[memory_type] = BatchedLocal(data_source=self.SCHEDULED_DATA_FILE, data_mode="single", data_set_class=PseudoJsonTweets)
+            self.MEMORY_MODE[memory_type] = mode
+            self.CLASSIFY_MODE[memory_type] = "binary"
         else:
             raise NotImplementedError()
 
     # data is a dataset object
-    def addToMemory(self,data):
-        self.MEMORY_TRACKER.write(data,"a")
+    def addToMemory(self,memory_type, data):
+        self.MEMORY_TRACKER[memory_type].write(data,"a")
     
-    def clearMemory(self,):
-        self.MEMORY_TRACKER.clear()
+    def clearMemory(self,memory_type):
+        self.MEMORY_TRACKER[memory_type].clear()
 
 
 class MLEPPredictionServer():
