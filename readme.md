@@ -23,7 +23,7 @@ versions are installed in your system.
 
 Create a new Python2.7 virtual environment in directory `.env`:
 ```console
-$ python -m venv .env
+$ virtualenv -p `which python2.7` .env
 ```
 
 Now we need to activate the newly created virtual environment, setting up your shell to use it by
