@@ -3,7 +3,7 @@
         "allow_update_schedule": true,
         "allow_update_drift": true,
         "drift_class":"LabeledDriftDetector",
-        "drift_mode":"DDM",
+        "drift_mode":"ADWIN",
 
         "update_schedule":2592000000,
         "weight_method":"unweighted",
@@ -15,7 +15,8 @@
             "DDM":"error",
             "EDDM":"error",
             "EnsembleDisagreement":"ensembleRaw",
-            "PageHinkley":"classification"
+            "PageHinkley":"classification", 
+            "ADWIN":"error"
         }
         
     },
