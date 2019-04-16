@@ -388,7 +388,7 @@ class MLEPLearningServer():
         scheduledTrainingData = None
 
         # TODO close the opened one before opening a read connection!!!!!
-        if self.MEMORY_MODE == "default":
+        if self.MEMORY_MODE["scheduled"] == "default":
             loadModule = self.MEMORY_TRACKER["scheduled"].__class__.__module__
             loadClass  = self.MEMORY_TRACKER["scheduled"].__class__.__name__
             dataModelModule = __import__(loadModule, fromlist=[loadClass])
@@ -400,7 +400,7 @@ class MLEPLearningServer():
             #trainDataLength = scheduledTrainingData.all_class_sizes()
 
 
-            if self.CLASSIFY_MODE == "binary":
+            if self.CLASSIFY_MODE["scheduled"] == "binary":
                 negDataLength = scheduledTrainingData.class_size(0)
                 posDataLength = scheduledTrainingData.class_size(1)
                 if negDataLength < 0.8*posDataLength:
