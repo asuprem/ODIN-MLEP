@@ -133,7 +133,7 @@ Each variable is described below:
     - [INT] - value for **filterName**
 
 
-# Execution (program)
+### Execution (program)
 
 Run:
 
@@ -149,7 +149,7 @@ Example of execution with options:
 
 You can give any name to the experiment. However, following the naming conventions in the previous section (*Execution (scripts)*) helps to keep track of the results.
 
-# The Configuration File
+# The Configuration File (out of date)
 We describe the MLEP configuration file (located in `./config/configuration/MLEPServer.json`). You may also see a `./config/configuration/ExperimentalServer.json`. This is generated during code execution and can be ignored. We focus on `./config/configuration/MLEPServer.json` here.
 
 The **MLEPServer.json** file has four components: 
