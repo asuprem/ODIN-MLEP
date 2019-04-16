@@ -62,7 +62,8 @@ class MLEPLearningServer():
 
         std_flush("\tStarted setting up memories at", readable_time())
         self.setUpMemories()
-        self.memoryTrack(mode="default")
+        self.memoryTrack(memory_type="scheduled", mode="default")
+        self.memoryTrack(memory_type="drift", mode="default")
         std_flush("\tFinished setting up memories at", readable_time())
 
 
@@ -337,7 +338,7 @@ class MLEPLearningServer():
                 else:  
                     self.MLEPUpdate(memory_type="scheduled")
 
-                self.updateModelStore()
+                
                 self.scheduledFilterGenerateUpdateTimer = self.overallTimer
     
     def MLEPUpdate(self,memory_type="scheduled"):
@@ -353,6 +354,7 @@ class MLEPLearningServer():
         # update
         self.update(TrainingData,models='all')
         std_flush("Completed", memory_type, "-memory based Model Update at", readable_time())
+        self.updateModelStore()
 
     def getTrainingData(self, memory_type="scheduled"):
         """ Get the data in self.SCHEDULED_DATA_FILE """
@@ -890,10 +892,10 @@ class MLEPLearningServer():
         return ensembleModelNames
 
     def classify(self, data):
-        # data has a Label... we don't deal with it just yet
-        # save to scheduledDataFile
-        #data is DataSet -- PseudoJson
-        self.addToMemory(memory_type="scheduled", data=data)
+        # Add to memories
+        for memory_type in self.MEMORY_TRACKER:
+            self.addToMemory(memory_type=memory_type, data=data)
+
         # First set up list of correct models
         ensembleModelNames = self.getValidModels()
         # Now that we have collection of candidaate models, we use filter_select to decide how to choose the right model
@@ -985,43 +987,12 @@ class MLEPLearningServer():
         if driftDetected:
             std_flush(self.MLEPConfig["drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
             self.DRIFT_TRACKER.reset()
-        # perform drift update (big whoo)
             
-
+            # perform drift update (big whoo)
+            self.MLEPUpdate(memory_type="drift")
         
-
-
-        """
-        # Standard Drift detect using errors
-        for driftDetector in self.LABELED_DRIFT_DETECTORS:
-            if driftDetector == "PH":
-                detected = self.LABELED_DRIFT_DETECTORS[driftDetector].detect(classification)
-            else:
-                detected = self.LABELED_DRIFT_DETECTORS[driftDetector].detect(error)
-            if detected:
-                std_flush(driftDetector, "has detected drift at", len(self.ERRORS), "samples. Resetting")
-                self.LABELED_DRIFT_DETECTORS[driftDetector].reset()
-
-
-        for driftDetector in self.ENSEMBLE_DRIFT_DETECTORS:
-            detected = self.ENSEMBLE_DRIFT_DETECTORS[driftDetector].detect(ensembleRaw)
-            if detected:
-                std_flush(driftDetector, "has detected drift at", len(self.ERRORS), "samples. Resetting")
-                self.ENSEMBLE_DRIFT_DETECTORS[driftDetector].reset()
-        """
-
         return classification
 
-        #Iterate through classifiers in ensembleModelNames and get their error rates
-        # for each classifier with too much error, Do something -- perform an update + copy using DRIFT_DATA_FILE
-
-        # perform Drift Detection, and update Step, as necessary
-        # will also need to add data to internal memory tracker (similar to MEMORY)
-
-
-        
-
-        
 
     
 
