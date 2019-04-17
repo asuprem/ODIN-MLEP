@@ -47,21 +47,11 @@ def main(experimentname, update, weights, select, filter, kval):
     savePath.write(experimentname + ',')
     
     internalTimer = 0
-
-    # TODO --> sortDataTimes()
-    # 
-    data = []
-    with open('data/data/2014_to_dec2018.json','r') as data_file:
-        for line in data_file:
-            data.append(json.loads(line.strip()))
-
-
     streamData = StreamLocal.StreamLocal(data_source="data/data/2014_to_dec2018.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
-
 
     augmentation = BatchedLocal.BatchedLocal(data_source='data/data/collectedIrrelevant.json', data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     augmentation.load_by_class()
-    
+
     trainingData = BatchedLocal.BatchedLocal(data_source='data/data/initialTrainingData.json', data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     trainingData.load()
     
