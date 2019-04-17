@@ -1,8 +1,7 @@
 
-from LearningModel import LearningModel
+import mlep.learning_model.LearningModel
 
-
-class sklearnRandomForest(LearningModel):
+class sklearnRandomForest(mlep.learning_model.LearningModel.LearningModel):
     """Decision Tree learning model wrapper."""
 
     def __init__(self):

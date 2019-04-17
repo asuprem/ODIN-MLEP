@@ -1,8 +1,8 @@
 
-from LearningModel import LearningModel
+import mlep.learning_model.LearningModel
 
 
-class sklearnLogReg(LearningModel):
+class sklearnLogReg(mlep.learning_model.LearningModel.LearningModel):
     """Logistic regression learning model wrapper."""
 
     def __init__(self):
