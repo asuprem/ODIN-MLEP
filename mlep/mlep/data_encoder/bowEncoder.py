@@ -1,6 +1,6 @@
-import DataEncoder
+import mlep.data_encoder.DataEncoder
 
-class bowEncoder(DataEncoder.DataEncoder):
+class bowEncoder(mlep.data_encoder.DataEncoder.DataEncoder):
     """ Built-in encoder for bag of words; """
 
     def __init__(self,):

@@ -1,6 +1,4 @@
-
-
-
+__metaclass__ = type
 class DataEncoder():
     """ Super class for Data Encoders. They must implement methods presented here """
 

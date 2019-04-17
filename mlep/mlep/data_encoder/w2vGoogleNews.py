@@ -1,6 +1,6 @@
-import DataEncoder
+import mlep.data_encoder.DataEncoder
 
-class w2vGoogleNews(DataEncoder.DataEncoder):
+class w2vGoogleNews(mlep.data_encoder.DataEncoder.DataEncoder):
     """ Built-in encoder for Google w2v; limited to 100K most common words """
 
     def __init__(self,):

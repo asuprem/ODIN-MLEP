@@ -1,6 +1,6 @@
-import DataEncoder
+import mlep.data_encoder.DataEncoder
 
-class w2vGeneric(DataEncoder.DataEncoder):
+class w2vGeneric(mlep.data_encoder.DataEncoder.DataEncoder):
     """ Built-in encoder for Generic w2v;"""
 
     def __init__(self,):
