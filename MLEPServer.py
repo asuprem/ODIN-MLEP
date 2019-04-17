@@ -14,7 +14,7 @@ class MLEPLearningServer():
         """
         utils.std_flush("Initializing MLEP...")
 
-        
+        self.setUpCoreVars()
         self.configureSqlite()
         self.loadConfig(PATH_TO_CONFIG_FILE)
         self.initializeTimers()
@@ -23,18 +23,30 @@ class MLEPLearningServer():
         self.initializeDb()
         self.setUpEncoders()
         self.setUpMetrics()
-        self.setUpDriftTracker()
+        self.setUpExplicitDriftTracker()
+        self.setUpUnlabeledDriftTracker()
         self.setUpMemories()
         self.memoryTrack(memory_type="scheduled", mode="default")
-        self.memoryTrack(memory_type="drift", mode="default")
+        self.memoryTrack(memory_type="explicit_drift", mode="default")
+        self.memoryTrack(memory_type="unlabeled_drift", mode="default")
         self.setUpModelTracker()
 
+        utils.std_flush("Finished initializing MLEP...")
+
+    def setUpCoreVars(self,):
+        self.KNOWN_EXPLICIT_DRIFT_CLASSES = ["LabeledDriftDetector"]
+        self.KNOWN_UNLABELED_DRIFT_CLASSES = ["UnlabeledDriftDetector"]
+        
         # Setting of 'hosted' models + data cetroids
         self.MODELS = {}
         self.CENTROIDS={}
 
         # Augmenter
         self.AUGMENT = None
+
+        # Statistics
+        self.LAST_CLASSIFICATION = 0
+        self.LAST_ENSEMBLE = []
 
 
     def setUpModelTracker(self,):
@@ -75,17 +87,43 @@ class MLEPLearningServer():
         utils.std_flush("\tFinished setting up metrics tracking at", utils.readable_time())
 
 
-    def setUpDriftTracker(self,):
+    def setUpUnlabeledDriftTracker(self,):
+        if self.MLEPConfig["allow_unlabeled_drift"]:
+            utils.std_flush("\tStarted setting up unlabeled drift tracker at", utils.readable_time())
+            
+            if self.MLEPConfig["unlabeled_drift_class"] not in self.KNOWN_UNLABELED_DRIFT_CLASSES:
+                raise ValueError("Unlabeled drift class '%s' in configuration is not part of any known Unlabeled Drift Classes: %s"%(self.MLEPConfig["unlabeled_drift_class"], str(self.KNOWN_UNLABELED_DRIFT_CLASSES)))
 
-        utils.std_flush("\tStarted setting up drift tracker at", utils.readable_time())
-        driftTracker = self.MLEPConfig["drift_mode"]
-        driftModule = self.MLEPConfig["drift_class"]
-        driftArgs = self.MLEPConfig["drift_args"] if "drift_args" in self.MLEPConfig else {}
-        driftModuleImport = __import__("config.DriftDetector.%s.%s"%(driftModule, driftTracker), fromlist=[driftTracker])
-        driftTrackerClass = getattr(driftModuleImport,driftTracker)
-        self.DRIFT_TRACKER = driftTrackerClass(**driftArgs)
+            driftTracker = self.MLEPConfig["unlabeled_drift_mode"]
+            driftModule = self.MLEPConfig["unlabeled_drift_class"]
+            driftArgs = self.MLEPConfig["drift_args"] if "drift_args" in self.MLEPConfig else {}
+            driftModuleImport = __import__("config.DriftDetector.%s.%s"%(driftModule, driftTracker), fromlist=[driftTracker])
+            driftTrackerClass = getattr(driftModuleImport,driftTracker)
+            self.UNLABELED_DRIFT_TRACKER = driftTrackerClass(**driftArgs)
 
-        utils.std_flush("\tFinished setting up drift tracker at", utils.readable_time())
+            utils.std_flush("\tFinished setting up unlabeled drift tracker at", utils.readable_time())
+        else:
+            self.UNLABELED_DRIFT_TRACKER = None
+            utils.std_flush("\tUnlabeled drift tracker not used in this run", utils.readable_time())
+
+    def setUpExplicitDriftTracker(self,):
+        if self.MLEPConfig["allow_explicit_drift"]:
+            utils.std_flush("\tStarted setting up explicit drift tracker at", utils.readable_time())
+            
+            if self.MLEPConfig["explicit_drift_class"] not in self.KNOWN_EXPLICIT_DRIFT_CLASSES:
+                raise ValueError("Explicit drift class '%s' in configuration is not part of any known Explicit Drift Classes: %s"%(self.MLEPConfig["explicit_drift_class"], str(self.KNOWN_EXPLICIT_DRIFT_CLASSES)))
+
+            driftTracker = self.MLEPConfig["explicit_drift_mode"]
+            driftModule = self.MLEPConfig["explicit_drift_class"]
+            driftArgs = self.MLEPConfig["drift_args"] if "drift_args" in self.MLEPConfig else {}
+            driftModuleImport = __import__("config.DriftDetector.%s.%s"%(driftModule, driftTracker), fromlist=[driftTracker])
+            driftTrackerClass = getattr(driftModuleImport,driftTracker)
+            self.EXPLICIT_DRIFT_TRACKER = driftTrackerClass(**driftArgs)
+
+            utils.std_flush("\tFinished setting up explicit drift tracker at", utils.readable_time())
+        else:
+            self.EXPLICIT_DRIFT_TRACKER = None
+            utils.std_flush("\tExplicit drift tracker not used in this run", utils.readable_time())
 
 
     def configureSqlite(self):
@@ -894,24 +932,40 @@ class MLEPLearningServer():
 
         self.updateMetrics(classification, error, ensembleError, ensembleRaw, ensembleWeighted)
 
-        # perform drift detection and update:
-        if not self.MLEPConfig["allow_update_drift"]:
-            return classification
+        # perform explicit drift detection and update:
+        if self.MLEPConfig["allow_explicit_drift"]:
+            # send the input appropriate for the drift mode
+            # shuld be updated to be more readble; update so that users can define their own drift tracking method
+            driftDetected = self.EXPLICIT_DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["drift_metrics"][self.MLEPConfig["explicit_drift_mode"]]])
+            if driftDetected:
+                utils.std_flush(self.MLEPConfig["explicit_drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
+                self.EXPLICIT_DRIFT_TRACKER.reset()
+                
+                # perform drift update (big whoo)
+                self.MLEPUpdate(memory_type="explicit_drift")
 
-        # send the input appropriate for the drift mode
-        # shuld be updated to be more readble; update so that users can define their own drift tracking method
-        driftDetected = self.DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["drift_input"][self.MLEPConfig["drift_mode"]]])
-        if driftDetected:
-            utils.std_flush(self.MLEPConfig["drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
-            self.DRIFT_TRACKER.reset()
-            
-            # perform drift update (big whoo)
-            self.MLEPUpdate(memory_type="drift")
+        # perform explicit drift detection and update:
+        if self.MLEPConfig["allow_unlabeled_drift"]:
+            # send the input appropriate for the drift mode
+            # shuld be updated to be more readble; update so that users can define their own drift tracking method
+            driftDetected = self.UNLABELED_DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["drift_metrics"][self.MLEPConfig["unlabeled_drift_mode"]]])
+            if driftDetected:
+                utils.std_flush(self.MLEPConfig["unlabeled_drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
+                self.UNLABELED_DRIFT_TRACKER.reset()
+                
+                # perform drift update (big whoo)
+                self.MLEPUpdate(memory_type="unlabeled_drift")
         
+        self.saveClassification(classification)
+        self.saveEnsemble(ensembleModelNames)
+
         return classification
 
 
-    
+    def saveClassification(self, classification):
+        self.LAST_CLASSIFICATION = classification
+    def saveEnsemble(self,ensembleModelNames):
+        self.LAST_ENSEMBLE = [item for item in ensembleModelNames]
 
 
     def setUpMemories(self,):
@@ -944,21 +998,5 @@ class MLEPLearningServer():
     def clearMemory(self,memory_type):
         self.MEMORY_TRACKER[memory_type].clear()
 
-
-class MLEPPredictionServer():
-    def __init__(self,):
-        # Initialize Prediction Server
-        # Set up storage directories
-        self.SOURCE_DIR = './.MLEPServer'
-        self.setups = ['models', 'data', 'modelSerials', 'db']
-        
-
-    def classify(self,data, MLEPLearner):
-        # sve data item to scheduledDataFile
-        """
-        TODO predictor should get access to which DataModel approach to use to save the data...
-
-        """
-        return MLEPLearner.classify(data)
             
 
