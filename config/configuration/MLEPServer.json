@@ -1,17 +1,28 @@
 {
     "config":{
-        "allow_update_schedule": true,
-        "allow_update_drift": true,
-        "drift_class":"LabeledDriftDetector",
-        "drift_mode":"ADWIN",
+        
+        "allow_explicit_drift": false,
+        "explicit_drift_class":"LabeledDriftDetector",
+        "explicit_drift_mode":"ADWIN",
 
+        "allow_update_schedule": false,
         "update_schedule":2592000000,
+
+        "allow_model_drift":false,
+
+        "allow_unlabeled_drift": false,
+        "unlabeled_drift_class":"UnlabeledDriftDetector",
+        "unlabeled_drift_mode":"EnsembleDisagreement",
+
+
+        
         "weight_method":"unweighted",
         "select_method":"train",
         "filter_select":"no-filter",
         "k-val": 5,
+        "update-prune":"C",
 
-        "drift_input":{
+        "drift_metrics":{
             "DDM":"error",
             "EDDM":"error",
             "EnsembleDisagreement":"ensembleRaw",
