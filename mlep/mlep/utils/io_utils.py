@@ -11,3 +11,4 @@ def std_flush(*args, **kwargs):
 
 def load_json(json_):
     return json.load(codecs.open(json_, encoding='utf-8'))
+

@@ -1,9 +1,12 @@
 import os, time, json, sys, pdb, click
 
-from mlep.core import MLEPServer
-from config.DataModel import BatchedLocal
-from config.DataModel import StreamLocal
-from config.DataSet import PseudoJsonTweets
+import mlep.core.MLEPServer as MLEPServer
+
+import mlep.data_model.BatchedLocal as BatchedLocal
+import mlep.data_model.StreamLocal as StreamLocal
+import mlep.data_set.PseudoJsonTweets as PseudoJsonTweets
+
+import mlep.utils.io_utils as io_utils
 
 """
 Arguments
@@ -22,7 +25,9 @@ python application.py experimentName [updateSchedule] [weightMethod] [selectMeth
 @click.option('--kval', type=int)
 def main(experimentname, update, weights, select, filter, kval):
     # We'll load thhe config file, make changes, and write a secondary file for experiments
-    mlepConfig = utils.load_json('./config/configuration/MLEPServer.json')
+    mlepConfig = io_utils.load_configuration()
+
+    './config/configuration/MLEPServer.json'
     if update is not None:
         mlepConfig["config"]['update_schedule'] = update
     if weights is not None:
