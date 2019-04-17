@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/python
 # Code from https://github.com/SmileYuhao/concept-drift with minor changes (some function names to fit interface)
-import LabeledDriftDetector
+import mlep.drift_detector.LabeledDriftDetector.LabeledDriftDetector as LabeledDriftDetector
 
 class ADWIN(LabeledDriftDetector.LabeledDriftDetector):
     """ Implements the ADWIN drift detection method.

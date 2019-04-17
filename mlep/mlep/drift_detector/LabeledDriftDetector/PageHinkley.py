@@ -1,7 +1,6 @@
-from LabeledDriftDetector import LabeledDriftDetector
+import mlep.drift_detector.LabeledDriftDetector.LabeledDriftDetector as LabeledDriftDetector
 
-
-class PageHinkley(LabeledDriftDetector):
+class PageHinkley(LabeledDriftDetector.LabeledDriftDetector):
     def __init__(self,min_instances=30, delta = 0.005, threshold=50, alpha = 0.9999):
 
         self.min_instances = min_instances

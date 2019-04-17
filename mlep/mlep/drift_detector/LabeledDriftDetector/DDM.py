@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/python
-import LabeledDriftDetector
+import mlep.drift_detector.LabeledDriftDetector.LabeledDriftDetector as LabeledDriftDetector
 
 class DDM(LabeledDriftDetector.LabeledDriftDetector):
     """ Implements the DDM drift detection method.

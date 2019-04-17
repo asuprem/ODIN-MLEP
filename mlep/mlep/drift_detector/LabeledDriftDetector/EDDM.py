@@ -1,7 +1,7 @@
-from LabeledDriftDetector import LabeledDriftDetector
+import mlep.drift_detector.LabeledDriftDetector.LabeledDriftDetector as LabeledDriftDetector
 
 
-class EDDM(LabeledDriftDetector):
+class EDDM(LabeledDriftDetector.LabeledDriftDetector):
     def __init__(self,min_instances=30, min_errors = 30, drift_level=0.9):
 
         from math import sqrt

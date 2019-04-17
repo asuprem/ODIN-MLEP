@@ -1,6 +1,6 @@
 __metaclass__ = type
 
-class LabeledDriftDetector():
+class LabeledDriftDetector:
     """ abstract Labeled Drift Detector class
     
     A Labeled Drift Detector takes in labeled data or error rates and detets if drift has occured. Any LabeledDriftDetector must implement the functions provided here.

@@ -1,5 +1,4 @@
-import UnlabeledDriftDetector
-
+import mlep.drift_detector.UnlabeledDriftDetector.UnlabeledDriftDetector as UnlabeledDriftDetector
 
 class EnsembleDisagreement(UnlabeledDriftDetector.UnlabeledDriftDetector):
     def __init__(self,threshold=0.8, min_ensemble=5):
