@@ -5,7 +5,6 @@ import mlep.core.MLEPServer as MLEPServer
 import mlep.data_model.BatchedLocal as BatchedLocal
 import mlep.data_model.StreamLocal as StreamLocal
 import mlep.data_set.PseudoJsonTweets as PseudoJsonTweets
-
 import mlep.utils.io_utils as io_utils
 
 """
@@ -50,12 +49,12 @@ def main(experimentname, update, weights, select, filter, kval):
     savePath.write(experimentname + ',')
     
     internalTimer = 0
-    streamData = StreamLocal.StreamLocal(data_source="data/data/2014_to_dec2018.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
+    streamData = StreamLocal.StreamLocal(data_source="data/2014_to_dec2018.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
 
-    augmentation = BatchedLocal.BatchedLocal(data_source='data/data/collectedIrrelevant.json', data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
+    augmentation = BatchedLocal.BatchedLocal(data_source='data/collectedIrrelevant.json', data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     augmentation.load_by_class()
 
-    trainingData = BatchedLocal.BatchedLocal(data_source='data/data/initialTrainingData.json', data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
+    trainingData = BatchedLocal.BatchedLocal(data_source='data/initialTrainingData.json', data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     trainingData.load()
     
 
@@ -71,7 +70,7 @@ def main(experimentname, update, weights, select, filter, kval):
     #   - NumericModel
     # Each model has these required methods
     #   
-    
+
     # Now we have the data
     MLEPLearner = MLEPServer.MLEPLearningServer(PATH_TO_CONFIG_FILE)
 

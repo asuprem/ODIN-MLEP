@@ -68,6 +68,8 @@ class w2vGeneric(mlep.data_encoder.DataEncoder.DataEncoder):
         return transformed_data
 
     def failCondition(self,dimensionSize="5000", seedName="wikipedia"):
+        import pdb
+        pdb.set_trace()
         # Check if model already exists
         modelSaveName = "-".join(["w2v","wiki", str(seedName), str(dimensionSize)]) + ".bin"
         modelSavePath = "./config/Sources/"+modelSaveName

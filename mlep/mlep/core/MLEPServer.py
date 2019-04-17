@@ -281,12 +281,12 @@ class MLEPLearningServer():
 
         io_utils.std_flush("\tStarted setting up encoders at", time_utils.readable_time())
 
-            
+        
         self.ENCODERS = {}
         for _ , encoder_config in self.MLEPEncoders.items():
             io_utils.std_flush("\t\tSetting up encoder", encoder_config["name"], "at", time_utils.readable_time())
             encoderName = encoder_config["scriptName"]
-            encoderModule = __import__("config.DataEncoder.%s" % encoderName,
+            encoderModule = __import__("mlep.data_encoder.%s" % encoderName,
                     fromlist=[encoderName])
             encoderClass = getattr(encoderModule, encoderName)
             self.ENCODERS[encoder_config["name"]] = encoderClass()
