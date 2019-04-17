@@ -25,9 +25,8 @@ python application.py experimentName [updateSchedule] [weightMethod] [selectMeth
 @click.option('--kval', type=int)
 def main(experimentname, update, weights, select, filter, kval):
     # We'll load thhe config file, make changes, and write a secondary file for experiments
-    mlepConfig = io_utils.load_configuration()
+    mlepConfig = io_utils.load_json('./MLEPServer.json')
 
-    './config/configuration/MLEPServer.json'
     if update is not None:
         mlepConfig["config"]['update_schedule'] = update
     if weights is not None:
@@ -39,7 +38,7 @@ def main(experimentname, update, weights, select, filter, kval):
     if kval is not None:
         mlepConfig["config"]['k-val'] = kval
     
-    PATH_TO_CONFIG_FILE = './config/configuration/ExperimentalConfig.json'
+    PATH_TO_CONFIG_FILE = './ExperimentalConfig.json'
     with open(PATH_TO_CONFIG_FILE, 'w') as write_:
         write_.write(json.dumps(mlepConfig))
 
