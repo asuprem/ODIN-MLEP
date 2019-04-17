@@ -71,7 +71,6 @@ def main(experimentname, update, weights, select, filter, kval):
     
     # Now we have the data
     MLEPLearner = MLEPServer.MLEPLearningServer(PATH_TO_CONFIG_FILE)
-    MLEPPredictor = MLEPServer.MLEPPredictionServer()
 
     # Train with raw training data (for now)
     # Assumptions - there is a 'text' field; assume we have access to a w2v encoder
@@ -91,7 +90,7 @@ def main(experimentname, update, weights, select, filter, kval):
             internalTimer = streamData.getObject().getValue("timestamp")
             MLEPLearner.updateTime(internalTimer)
 
-        classification = MLEPPredictor.classify(streamData.getObject(), MLEPLearner)
+        classification = MLEPLearner.classify(streamData.getObject())
         totalCounter.append(1)
         if classification != streamData.getLabel():
             mistakes.append(1.0)
