@@ -1,6 +1,6 @@
 __metaclass__ = type
 
-class EnsembleDriftDetector():
+class UnlabeledDriftDetector():
     """ This is an ensemble drift detector. It takes as input the ensemble of classifications, and uses distribution to check for drift"""
 
 

@@ -3,7 +3,7 @@ __metaclass__ = type
 class LabeledDriftDetector():
     """ abstract Labeled Drift Detector class
     
-    A Labeled Drift Detector takes in laebeld data or error rates and detets if drift has occured. Any LabeledDriftDetector must implement the functions provided here.
+    A Labeled Drift Detector takes in labeled data or error rates and detets if drift has occured. Any LabeledDriftDetector must implement the functions provided here.
 
     A Labeled Drift Detector is also specified in the Drift Detector configuration (todo) if it is to be used with MLEPServer
     """

@@ -1,7 +1,7 @@
-from EnsembleDriftDetector import EnsembleDriftDetector
+import UnlabeledDriftDetector
 
 
-class EnsembleDisagreement(EnsembleDriftDetector):
+class EnsembleDisagreement(UnlabeledDriftDetector.UnlabeledDriftDetector):
     def __init__(self,threshold=0.8):
 
         from itertools import combinations
