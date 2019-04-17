@@ -11,6 +11,10 @@
 apikey
 # Ignore in-memory sqlite database. It's actually created on-disk as well, so this line has to be added
 *memory*cache*
+# Ignore egg files
+*.egg-info
+# Ignore pycache files
+**/__pycache__
 
 
 # ---------- LOCAL FOLDERS (Abhijit) ----------------------
