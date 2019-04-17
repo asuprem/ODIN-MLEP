@@ -1,6 +1,6 @@
-import DataModel
+import mlep.data_model.DataModel
 
-class StreamLocal(DataModel.DataModel):
+class StreamLocal(mlep.data_model.DataModel.DataModel):
     """ StreamLocal model. Simulates streaming data"""
     
     def __init__(self, data_source=None, data_mode=None, num_samples="all", data_set_class=None):

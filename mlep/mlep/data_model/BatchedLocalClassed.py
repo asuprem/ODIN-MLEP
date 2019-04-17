@@ -1,6 +1,6 @@
-import BatchedLocal
+import mlep.data_model.BatchedLocal
 
-class BatchedLocalClassed(BatchedLocal.BatchedLocal):
+class BatchedLocalClassed(mlep.data_model.BatchedLocal.BatchedLocal):
     """ BatchedLocal model loads the batchedlocal file"""
     
     def __init__(self, data_source=None, data_mode=None, num_samples="all", data_set_class=None, classification_mode="binary", classes=[0,1]):
@@ -64,7 +64,7 @@ class BatchedLocalClassed(BatchedLocal.BatchedLocal):
     def getObjects(self,_class):
         return self.data
     def augment(self,data,labels):
-        
+        pass
 
 
     def getNextBatchData(self,):

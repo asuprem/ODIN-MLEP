@@ -1,7 +1,6 @@
 import os, time, json, sys, pdb, click
-import utils
 
-from mlep.code import MLEPServer
+from mlep.core import MLEPServer
 from config.DataModel import BatchedLocal
 from config.DataModel import StreamLocal
 from config.DataSet import PseudoJsonTweets
