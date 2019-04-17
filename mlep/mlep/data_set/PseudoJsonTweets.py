@@ -1,7 +1,7 @@
 
-from PseudoJson import PseudoJson
+import mlep.data_set.PseudoJson
 
-class PseudoJsonTweets(PseudoJson):
+class PseudoJsonTweets(mlep.data_set.PseudoJson.PseudoJson):
     """ PseudoJsonTweets model parses a psuedojson line and extracts relevant details from it """
 
     def __init__(self,data):

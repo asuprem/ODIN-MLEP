@@ -1,7 +1,5 @@
 __metaclass__ = type
 
-
-
 class DataSet:
     """The DataSet Model is passed into LearningModel for training a new model. Each element is a piece of Data - another class
     It contains methods for calculating distance (from a random data point), etc. It includes encoding methods - link to an existing encoder (?)

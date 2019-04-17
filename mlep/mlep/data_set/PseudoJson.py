@@ -1,6 +1,6 @@
-import DataSet
+import mlep.data_set.DataSet
 
-class PseudoJson(DataSet.DataSet):
+class PseudoJson(mlep.data_set.DataSet.DataSet):
     """ PseudoJson model parses a psuedojson line and extracts relevant details from it """
 
     def __init__(self,data, dataKey, labelKey):
