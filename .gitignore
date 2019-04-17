@@ -21,6 +21,8 @@ old/*
 # Folders used during local experimentation
 outputs/
 local/
+# Virtualenv
+mlenv/
 
 
 # ----------- MLEP IGNORES -------------------------------
