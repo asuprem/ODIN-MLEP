@@ -481,7 +481,7 @@ class MLEPLearningServer():
         else:
             raise NotImplementedError()
         
-        temporaryModelStore = {}
+        temporaryModelStore = []
         modelSaveNames = [modelSaveName for modelSaveName in self.MODEL_TRACK[models_to_update]]
         modelDetails = self.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
         pipelineNameDict = self.getDetails(modelDetails, 'pipelineName', 'dict')
