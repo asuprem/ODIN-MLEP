@@ -37,7 +37,7 @@ class EnsembleDisagreement(UnlabeledDriftDetector.UnlabeledDriftDetector):
 
         delta_avg = delta_sum/float(idx_)
 
-        if delta_avg > self.threshold:
+        if delta_avg < self.threshold:
             return True
         else:
             return False
