@@ -474,6 +474,14 @@ class MLEPLearningServer():
         # update copy
         # push details to DB
         # if copy's source is in MODEL_TRACK["recent"], add it to MODEL_TRACK["recent"] as well
+        prune_val = 5
+        if self.MLEPConfig["update-prune"] == "C":
+            # Keep constant to new
+            prune_val = len(self.MLEPPipelines)
+        else:
+            raise NotImplementedError()
+        
+        temporaryModelStore = {}
         modelSaveNames = [modelSaveName for modelSaveName in self.MODEL_TRACK[models_to_update]]
         modelDetails = self.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
         pipelineNameDict = self.getDetails(modelDetails, 'pipelineName', 'dict')
@@ -494,18 +502,43 @@ class MLEPLearningServer():
             testDataSavePath = ""
             # TODO add parent model for this model!!!!!
 
+            dicta={}
+            dicta["name"] = modelSavePath
+            dicta["MODEL"] = pipelineTrained
+            dicta["CENTROID"] = data_centroid
+            dicta["modelid"] = modelIdentifier
+            dicta["parentmodelid"] = str(modelSaveName)
+            dicta["pipelineName"] = str(currentPipeline["name"])
+            dicta["timestamp"] = timestamp
+            dicta["data_centroid"] = data_centroid
+            dicta["training_model"] = str(modelSavePath)
+            dicta["training_data"] = str(trainDataSavePath)
+            dicta["test_data"] = str(testDataSavePath)
+            dicta["precision"] = precision
+            dicta["recall"] = recall
+            dicta["score"] = score
+            dicta["_type"] = str(currentPipeline["type"])
+            dicta["active"] = 1
+
+            temporaryModelStore.append(dicta)
+
+        if len(sorted_temporary_model_store) > prune_val:
+            # keep the highest scoring update models
+            sorted_temporary_model_store = sorted(temporaryModelStore, key=lambda k:k["score"], reverse=True)
+            sorted_temporary_model_store = sorted_temporary_model_store[:prune_val]
+
+        for item in sorted_temporary_model_store:
             # save the model (i.e. host it)
-            self.MODELS[modelSavePath] = pipelineTrained
+            self.MODELS[item["name"]] = item["MODEL"]
             # Because we are simplifying this implementation, we don't actually have pipeline families. Every pipelien is part of the w2v family
             # So we can actually just store data_centroids locally
-            self.CENTROIDS[modelSavePath] = data_centroid
-            del pipelineTrained
+            self.CENTROIDS[item["name"]] = item["data_centrid"]
             # Now we save deets.
-            # Some cleaning
-            self.insertModelToDb(modelid=modelIdentifier, parentmodelid=str(modelSaveName), pipelineName=str(currentPipeline["name"]),
-                                timestamp=timestamp, data_centroid=data_centroid, training_model=str(modelSavePath), 
-                                training_data=str(trainDataSavePath), test_data=str(testDataSavePath), precision=precision, recall=recall, score=score,
-                                _type=str(currentPipeline["type"]), active=1)
+
+            self.insertModelToDb(modelid=item["modelid"], parentmodelid=item["parentmodelid"], pipelineName=item["pipelineName"],
+                                timestamp=item["timestamp"], data_centroid=item["data_centroid"], training_model=item["training_model"], 
+                                training_data=item["training_data"], test_data=item["test_data"], precision=item["precision"], recall=item["recall"], score=item["score"],
+                                _type=item["_type"], active=item["active"])
 
 
     def insertModelToDb(self,modelid=None, parentmodelid=None, pipelineName=None,
