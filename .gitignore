@@ -15,6 +15,7 @@ apikey
 *.egg-info
 # Ignore pycache files
 **/__pycache__
+**/mlruns
 
 
 # ---------- LOCAL FOLDERS (Abhijit) ----------------------
@@ -50,4 +51,6 @@ experiment/data/archive/*
 experiment/data/*.json
 experiment/data/online/
 experiment/data/gooddata/
+
+notes
 
