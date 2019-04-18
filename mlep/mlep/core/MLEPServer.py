@@ -522,8 +522,8 @@ class MLEPLearningServer():
 
             temporaryModelStore.append(dicta)
 
-        if len(sorted_temporary_model_store) > prune_val:
-            std_flush("Pruning models -- reducing from", str(len(sorted_temporary_model_store)),"to",str(prune_val),"update models." )
+        if len(temporaryModelStore) > prune_val:
+            std_flush("Pruning models -- reducing from", str(len(temporaryModelStore)),"to",str(prune_val),"update models." )
             # keep the highest scoring update models
             sorted_temporary_model_store = sorted(temporaryModelStore, key=lambda k:k["score"], reverse=True)
             sorted_temporary_model_store = sorted_temporary_model_store[:prune_val]
