@@ -8,20 +8,53 @@ import mlep.data_set.PseudoJsonTweets as PseudoJsonTweets
 import mlep.utils.io_utils as io_utils
 import mlep.utils.time_utils as time_utils
 
-
 import mlflow
 
 from sklearn.model_selection import ParameterGrid
+import warnings
+warnings.filterwarnings(action='ignore', category=FutureWarning)
 
 import traceback
 
 LOG_FILE = "./logfiles/experiment.log"
 EXP_STATUS = "./logfiles/status.log"
 
+class dumbwrite:
+    def __init__(self, *args, **kwargs):
+        pass
+    def write(self,*args,**kwargs):
+        pass
+    def flush(self,*args, **kwargs):
+        pass
+
+class dumbflow:
+    """ This is a replacement for mlflow that doesn't do anything -- in case we want a blank run..."""
+    def __init__(self,*args, **kwargs):
+        pass
+    def log_param(self,*args, **kwargs):
+        pass
+    def start_run(self,*args, **kwargs):
+        pass
+    def log_metric(self,*args, **kwargs):
+        pass
+    def set_tracking_uri(self,*args, **kwargs):
+        pass
+    def end_run(self,*args, **kwargs):
+        pass
+
+
+
 @click.command()
 @click.option('--expstatslog', default=0,type=int, help='0 for stdout only. Any + integer: Log exp to ./logfiles/experiment.log and status to ./logfiles/status.log')
-def main(expstatuslog):
-    if expstatuslog:
+@click.option('--mlflowlog', default=0,type=int, help='0 for no mlflow. Else it will log to mlflow')
+@click.option('--earlystop', default=0,type=int, help='0 for full run. Else it will stop after earlystop examples')
+def main(expstatslog, mlflowlog, earlystop):
+    if mlflowlog:
+        pass
+    else:
+        global mlflow
+        mlflow = dumbflow()
+    if expstatslog:
         exp_status_write = open(EXP_STATUS, "a", 0)
     else:
         exp_status_write = sys.stdout
@@ -31,17 +64,7 @@ def main(expstatuslog):
     exp_status_write.write("  BEGINNING NEW EXECUTION AT " + str(time_utils.readable_time("%Y-%m-%d %H:%M:%S"))) 
     exp_status_write.write("  --------------------------------------"+ "\n\n")
     # We are tracking drift adaptivity
-    # namely labeled drift detection, unlabeled-ensembleagreement versus some scheduled runs for now
-    # So we are running three experiments
-    
-    # set up scheduled params:
-    scheduled_param_grid = {  "update": [("2592000000", "M"), ( "1210000000","F")], 
-                    "weights":[( "unweighted","U"),( "performance","P" )], 
-                    "select":[( "train","TT" ) , (  "recent","RR" ) , ( "recent-new","RN" ) , ( "recent-updates","RU" ) , ( "historical-new","HN" ) , ( "historical-updates","HU" ) , ( "historical","HH" )],
-                    "filter":[("no-filter","F") , ("top-k","T"),("nearest","N")],
-                    "kval":[("5","5")],
-                    "allow_update_schedule": [True]}
-    scheduled_param = ParameterGrid(scheduled_param_grid)
+    # namely labeled drift detection
 
     # Set up explicit drift detection params
     explicit_drift_param_grid = {   "allow_explicit_drift": [(True,"ExpDr")],
@@ -52,18 +75,10 @@ def main(expstatuslog):
                                     "allow_update_schedule": [(False,"")],
 
                                     "weights":[( "unweighted","U"),( "performance","P" )],
-                                    "select":[(  "recent","RR" ) , ( "recent-new","RN" ) , ( "recent-updates","RU" ) , ( "historical-new","HN" ) , ( "historical-updates","HU" ) , ( "historical","HH" )],
-                                    "filter":[("no-filter","F") , ("top-k","T"),("nearest","N")],
+                                    "select":[(  "recent","RR" ) , ( "recent-new","RN" ) , ( "recent-updates","RU" ) ],
+                                    "filter":[ ("no-filter","F"), ("top-k","T"),("nearest","N")],
                                     "kval":[("5","5"), ("10","10")]}
     explicit_drift_params = ParameterGrid(explicit_drift_param_grid)
-
-    # Set up unlabeled drift detection params
-    unlabeled_drift_param_grid = {   "allow_unlabeled_drift": [True],
-                                    "unlabeled_drift_class": ["UnlabeledDriftDetector"],
-                                    "explicit_drift_mode":["EnsembleDisagreement"]}
-    unlabeled_drift_param = ParameterGrid(unlabeled_drift_param_grid)
-    # Set up parameters:
-    
 
     for param_set in explicit_drift_params:
         # This is an experiment
@@ -87,8 +102,9 @@ def main(expstatuslog):
         # Now we have the Experimental Coonfig we can use for running an experiment
         # generate an experiment name
         exp_status_write.write("--STATUS-- " + experiment_name + "   ")
+        exp_status_write.flush()
         try:
-            runExperiment(CONFIG_PATH, mlepConfig, experiment_name, expstatuslog)
+            runExperiment(CONFIG_PATH, mlepConfig, experiment_name, expstatslog, earlystop)
             exp_status_write.write("SUCCESS\n")
         except Exception as e:
             exp_status_write.write("FAILED\n")
@@ -97,13 +113,14 @@ def main(expstatuslog):
             exp_status_write.write("\n")
             exp_status_write.flush()
             mlflow.end_run()
+        exp_status_write.flush()
 
     exp_status_write.close()
 
 
 
 
-def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name, expstatuslog):
+def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name, expstatuslog, earlystop):
 
     # set up mlflow access
     # mlflow.set_tracking_uri -- not needed, defaults to mlruns
@@ -111,7 +128,7 @@ def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name, expstatuslog
     if expstatuslog:
         sys.stdout = open(LOG_FILE, "w")
     else:
-        pass
+        sys.stdout = dumbwrite()
 
     mlflow.set_tracking_uri("mysql://mlflow:mlflow@127.0.0.1:3306/mlflow_runs")
     mlflow.start_run(run_name="explicit_drift_analysis")
@@ -144,7 +161,9 @@ def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name, expstatuslog
 
     totalCounter = 0.0
     mistakes = []
-    while streamData.next():
+    _earlystopcond = False
+
+    while streamData.next() and not _earlystopcond:
         if internalTimer < streamData.getObject().getValue("timestamp"):
             internalTimer = streamData.getObject().getValue("timestamp")
             MLEPLearner.updateTime(internalTimer)
@@ -159,6 +178,8 @@ def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name, expstatuslog
             mistakes.append(0.0)
         if totalCounter % 1000 == 0 and totalCounter>0.0:
             io_utils.std_flush("Completed", int(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/100.0)
+        if earlystop and totalCounter == earlystop:
+            _earlystopcond = True
         if totalCounter % 100 == 0 and totalCounter>0.0:
             running_error = sum(mistakes[-100:])/100.0
             mlflow.log_metric("running_err"+str(int(totalCounter/100)), running_error)
@@ -168,15 +189,43 @@ def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name, expstatuslog
 
     io_utils.std_flush("\n-----------------------------\nCOMPLETED\n-----------------------------\n")
     
-    sys.stdout.close()
     
-    mlflow.log_param("total_samples", totalCounter)  
-    mlflow.log_artifact(LOG_FILE)
+    
+    mlflow.log_param("total_samples", totalCounter)
+    if expstatuslog:
+        mlflow.log_artifact(LOG_FILE)
     mlflow.log_param("run_complete", True)
     mlflow.end_run()
+
+    if expstatuslog:
+        sys.stdout.close()
+        sys.stdout = sys.__stdout__
+    else:
+        sys.stdout = sys.__stdout__
 
 
 
 
 if __name__ == "__main__":
     main()
+
+
+
+"""
+# set up scheduled params:
+    scheduled_param_grid = {  "update": [("2592000000", "M"), ( "1210000000","F")], 
+                    "weights":[( "unweighted","U"),( "performance","P" )], 
+                    "select":[( "train","TT" ) , (  "recent","RR" ) , ( "recent-new","RN" ) , ( "recent-updates","RU" ) , ( "historical-new","HN" ) , ( "historical-updates","HU" ) , ( "historical","HH" )],
+                    "filter":[("no-filter","F") , ("top-k","T"),("nearest","N")],
+                    "kval":[("5","5")],
+                    "allow_update_schedule": [True]}
+    scheduled_param = ParameterGrid(scheduled_param_grid)
+
+
+    # Set up unlabeled drift detection params
+    unlabeled_drift_param_grid = {   "allow_unlabeled_drift": [True],
+                                    "unlabeled_drift_class": ["UnlabeledDriftDetector"],
+                                    "explicit_drift_mode":["EnsembleDisagreement"]}
+    unlabeled_drift_param = ParameterGrid(unlabeled_drift_param_grid)
+    # Set up parameters:
+"""
