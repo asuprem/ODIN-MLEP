@@ -44,6 +44,7 @@ config/configuration/ExperimentalConfig.json
 
 **/Sources
 **/RawSources
+**/logfiles
 
 # ------------- OTHER IGNORES ----------------------------
 # Ignore data files not used for actual execution. These include local files used to debug some parts of code, but would just pollute the git.
