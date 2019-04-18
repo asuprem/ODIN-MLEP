@@ -16,9 +16,9 @@
 
 
         
-        "weight_method":"unweighted",
-        "select_method":"train",
-        "filter_select":"no-filter",
+        "weight_method":"weighted",
+        "select_method":"historical",
+        "filter_select":"nearest",
         "k-val": 5,
         "update-prune":"C",
 
