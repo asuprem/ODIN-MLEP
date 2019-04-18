@@ -42,6 +42,7 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
         # This is whether, in write mode, we are adding to existing file or clearing and starting over from scratch. Lazy deletion.
         self._clear = True
         self.load_memory = 0
+        self.writer = None
 
     def load(self,):
         # Init function loads data
@@ -68,37 +69,40 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
         return self.class_statistics[_class]
 
 
+    def open(self, mode="a"):
+        if self.writer is not None:
+            raise ResourceWarning("Writer is still open. You should close it with close() method before opening again.")
+        self.writer = open(self.data_source, mode)
+    def close(self,):
+        if self.writer is None:
+            pass
+        else:
+            self.writer.close()
+        self.writer = None
+
+
     # data is a DataSet object
-    def write(self,data, mode="a"):
+    def write(self,data):
         # mode --> "w" or "a"
+        if self.writer is None:
+            raise IOError("No writer set.")
         if self.data_mode == "single":
-            if self._clear:
-                # Need to write from scratch
-                with open(self.data_source,"w") as data_source_file:
-                    data_source_file.write(data.serialize()+'\n')
-                self._clear = False
-                self.load_memory += 1
-            else:
-                try:
-                    with open(self.data_source,mode) as data_source_file:
-                        data_source_file.write(data.serialize()+'\n')
-                    self.load_memory+=1
-                except IOError:
-                    self.clear()
-                    self._clear = False
-                    with open(self.data_source,"w") as data_source_file:
-                        data_source_file.write(data.serialize()+'\n')
-                    self.load_memory=1
+            self.writer.write(data.serialize()+'\n')
+            self.load_memory+=1
+        else:
+            raise NotImplementedError()
         # For other data_mode, have to keep track of file names for writing.
 
     def clear(self,):
         """ this is to clear the BatchedLocal file. Dangerous for loading data batchedFile object, cause it will, well, delete the load data """
         """ maybe separate BatchedLocalLoader and BatchedLocalWriters..."""
         self._clear = True
+        self.close()
         import os
         if os.path.exists(self.data_source):
             os.remove(self.data_source)
         self.load_memory = 0
+        self.open("a")
     
     def hasSamples(self,):
         return bool(self.load_memory)
@@ -164,7 +168,7 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
             "num_samples":self.num_samples,
             "data_set_class":self.data_set_class,
             "classification_mode":self.classification_mode,
-            "classes":self.classes
+            "classes":self.classes,
         }
 
 
