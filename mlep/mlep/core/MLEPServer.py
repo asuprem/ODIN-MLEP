@@ -98,7 +98,7 @@ class MLEPLearningServer():
             driftTracker = self.MLEPConfig["unlabeled_drift_mode"]
             driftModule = self.MLEPConfig["unlabeled_drift_class"]
             driftArgs = self.MLEPConfig["drift_args"] if "drift_args" in self.MLEPConfig else {}
-            driftModuleImport = __import__("config.DriftDetector.%s.%s"%(driftModule, driftTracker), fromlist=[driftTracker])
+            driftModuleImport = __import__("mlep.drift_detector.%s.%s"%(driftModule, driftTracker), fromlist=[driftTracker])
             driftTrackerClass = getattr(driftModuleImport,driftTracker)
             self.UNLABELED_DRIFT_TRACKER = driftTrackerClass(**driftArgs)
 
@@ -117,7 +117,7 @@ class MLEPLearningServer():
             driftTracker = self.MLEPConfig["explicit_drift_mode"]
             driftModule = self.MLEPConfig["explicit_drift_class"]
             driftArgs = self.MLEPConfig["drift_args"] if "drift_args" in self.MLEPConfig else {}
-            driftModuleImport = __import__("config.DriftDetector.%s.%s"%(driftModule, driftTracker), fromlist=[driftTracker])
+            driftModuleImport = __import__("mlep.drift_detector.%s.%s"%(driftModule, driftTracker), fromlist=[driftTracker])
             driftTrackerClass = getattr(driftModuleImport,driftTracker)
             self.EXPLICIT_DRIFT_TRACKER = driftTrackerClass(**driftArgs)
 
@@ -454,7 +454,7 @@ class MLEPLearningServer():
 
         # Perform lookup
         pipelineModelName = self.MLEPModels[pipelineModel]["scriptName"]
-        pipelineModelModule = __import__("config.LearningModel.%s"%pipelineModelName, fromlist=[pipelineModelName])
+        pipelineModelModule = __import__("mlep.learning_model.%s"%pipelineModelName, fromlist=[pipelineModelName])
         pipelineModelClass = getattr(pipelineModelModule,pipelineModelName)
 
         model = pipelineModelClass()
