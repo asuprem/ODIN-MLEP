@@ -15,11 +15,17 @@ from sklearn.model_selection import ParameterGrid
 
 import traceback
 
-LOG_FILE = "./logfiles/application.log"
-EXP_STATUS = "./logfiles/experiments.log"
-def main():
+LOG_FILE = "./logfiles/experiment.log"
+EXP_STATUS = "./logfiles/status.log"
 
-    exp_status_write = open(EXP_STATUS, "a")
+@click.command()
+@click.option('--expstatslog', default=0,type=int, help='0 for stdout only. Any + integer: Log exp to ./logfiles/experiment.log and status to ./logfiles/status.log')
+def main(expstatuslog):
+    if expstatuslog:
+        exp_status_write = open(EXP_STATUS, "a", 0)
+    else:
+        exp_status_write = sys.stdout
+
     exp_status_write.write("\n\n\n\n")
     exp_status_write.write("--------------------------------------")
     exp_status_write.write("  BEGINNING NEW EXECUTION AT " + str(time_utils.readable_time("%Y-%m-%d %H:%M:%S"))) 
@@ -82,7 +88,7 @@ def main():
         # generate an experiment name
         exp_status_write.write("--STATUS-- " + experiment_name + "   ")
         try:
-            runExperiment(CONFIG_PATH, mlepConfig, experiment_name)
+            runExperiment(CONFIG_PATH, mlepConfig, experiment_name, expstatuslog)
             exp_status_write.write("SUCCESS\n")
         except Exception as e:
             exp_status_write.write("FAILED\n")
@@ -97,12 +103,15 @@ def main():
 
 
 
-def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name):
+def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name, expstatuslog):
 
     # set up mlflow access
     # mlflow.set_tracking_uri -- not needed, defaults to mlruns
     # mlflow.create_experiment -- need experiment name. Should I programmatically create one? or go by timestamp
-    sys.stdout = open(LOG_FILE, "w")
+    if expstatuslog:
+        sys.stdout = open(LOG_FILE, "w")
+    else:
+        pass
 
     mlflow.set_tracking_uri("mysql://mlflow:mlflow@127.0.0.1:3306/mlflow_runs")
     mlflow.start_run(run_name="explicit_drift_analysis")
