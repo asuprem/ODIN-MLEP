@@ -528,7 +528,7 @@ class MLEPLearningServer():
             temporaryModelStore = sorted(temporaryModelStore, key=lambda k:k["score"], reverse=True)
             temporaryModelStore = temporaryModelStore[:prune_val]
 
-        for item in sorted_temporary_model_store:
+        for item in temporaryModelStore:
             # save the model (i.e. host it)
             self.MODELS[item["name"]] = item["MODEL"]
             # Because we are simplifying this implementation, we don't actually have pipeline families. Every pipelien is part of the w2v family
