@@ -533,7 +533,7 @@ class MLEPLearningServer():
             self.MODELS[item["name"]] = item["MODEL"]
             # Because we are simplifying this implementation, we don't actually have pipeline families. Every pipelien is part of the w2v family
             # So we can actually just store data_centroids locally
-            self.CENTROIDS[item["name"]] = item["data_centrid"]
+            self.CENTROIDS[item["name"]] = item["data_centroid"]
             # Now we save deets.
 
             self.insertModelToDb(modelid=item["modelid"], parentmodelid=item["parentmodelid"], pipelineName=item["pipelineName"],
