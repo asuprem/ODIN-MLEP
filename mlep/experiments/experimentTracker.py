@@ -89,6 +89,7 @@ def main():
             exp_status_write.write(traceback.format_exc())
             exp_status_write.write(str(e))
             exp_status_write.write("\n")
+            mlflow.end_run()
 
     exp_status_write.close()
 
