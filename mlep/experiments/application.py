@@ -111,8 +111,9 @@ def main(experimentname, update, weights, select, filter, kval):
     sys.stdout.close()
     
     mlflow.log_param("run_complete", True)
+    mlflow.log_param("total_samples", totalCounter)  
     mlflow.log_artifact(LOG_FILE)
-    mlflow.end_run("total_samples", totalCounter)  
+    mlflow.end_run()
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter
