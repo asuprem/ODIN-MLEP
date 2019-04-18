@@ -100,7 +100,7 @@ def main(experimentname, update, weights, select, filter, kval):
             io_utils.std_flush("Completed", int(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/100.0)
         if totalCounter % 100 == 0 and totalCounter>0.0:
             running_error = sum(mistakes[-100:])/100.0
-            mlflow.log_metric("running_err", running_error)
+            mlflow.log_metric("running_err"+str(int(totalCounter/100)), running_error)
     
     
 
