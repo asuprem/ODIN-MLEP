@@ -1,7 +1,7 @@
 {
     "config":{
         
-        "allow_explicit_drift": true,
+        "allow_explicit_drift": false,
         "explicit_drift_class":"LabeledDriftDetector",
         "explicit_drift_mode":"PageHinkley",
 
@@ -10,7 +10,7 @@
 
         "allow_model_drift":false,
 
-        "allow_unlabeled_drift": false,
+        "allow_unlabeled_drift": true,
         "unlabeled_drift_class":"UnlabeledDriftDetector",
         "unlabeled_drift_mode":"EnsembleDisagreement",
 
