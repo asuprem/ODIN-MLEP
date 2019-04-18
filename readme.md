@@ -1,3 +1,12 @@
+# WIP
+
+installing as a development package
+
+    cd into mlep
+    pip3 install -e .
+    
+
+
 # MLEP
 MLEP is a Machine Learning Event Processor. It is a system to perform event detection in drifting
 data.
