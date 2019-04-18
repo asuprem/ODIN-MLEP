@@ -162,7 +162,7 @@
             "sequence": ["w2v-generic-20000", "sgd"],
             "type":"binary",
             "encoder": "w2v-generic-20000",
-            "valid":false
+            "valid":true
         }, 
 
         "pipelineF":{
@@ -170,16 +170,52 @@
             "sequence": ["w2v-generic-20000", "decisiontree"],
             "type":"binary",
             "encoder": "w2v-generic-20000",
-            "valid":false
+            "valid":true
         }, 
+        
 
-        "pipelineG":{
-            "name": "pipelineG",
+
+
+
+
+
+
+
+
+
+
+        
+        "bowDecision":{
+            "name": "bowDecision",
             "sequence": ["bowDefault", "decisiontree"],
             "type":"binary",
             "encoder": "bowDefault",
             "valid":true
-        }
+        },
+
+        "bowlogreg":{
+            "name": "bowlogreg",
+            "sequence": ["bowDefault", "logreg"],
+            "type":"binary",
+            "encoder": "bowDefault",
+            "valid":true
+        },
+
+        "bowrandforest":{
+            "name": "bowrandforest",
+            "sequence": ["bowDefault", "randforest"],
+            "type":"binary",
+            "encoder": "bowDefault",
+            "valid":true
+        },
+
+        "bowsgd":{
+            "name": "bowsgd",
+            "sequence": ["bowDefault", "sgd"],
+            "type":"binary",
+            "encoder": "bowDefault",
+            "valid":true
+        }    
 
         
 
