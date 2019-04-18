@@ -1,11 +1,11 @@
 {
     "config":{
         
-        "allow_explicit_drift": false,
+        "allow_explicit_drift": true,
         "explicit_drift_class":"LabeledDriftDetector",
         "explicit_drift_mode":"ADWIN",
 
-        "allow_update_schedule": true,
+        "allow_update_schedule": false,
         "update_schedule":2592000000,
 
         "allow_model_drift":false,
