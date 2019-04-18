@@ -1,5 +1,7 @@
 import os, time, json, sys, pdb, click
 
+import mlflow
+
 import mlep.core.MLEPServer as MLEPServer
 
 import mlep.data_model.BatchedLocal as BatchedLocal
@@ -14,7 +16,7 @@ Arguments
 python application.py experimentName [updateSchedule] [weightMethod] [selectMethod] [filterMethod] [kVal]
 
 """
-
+LOG_FILE = "./logfiles/application.log"
 
 @click.command()
 @click.argument('experimentname')
@@ -24,6 +26,18 @@ python application.py experimentName [updateSchedule] [weightMethod] [selectMeth
 @click.option('--filter', type=click.Choice(["no-filter", "top-k", "nearest"]))
 @click.option('--kval', type=int)
 def main(experimentname, update, weights, select, filter, kval):
+    # set up logging
+    if not os.path.exists('./logfiles'):
+        os.makedirs('logfiles')
+
+    sys.stdout = open(LOG_FILE, "w")
+
+    # Tracking URI -- yeah it's not very secure, but w/e
+    mlflow.set_tracking_uri("mysql://mlflow:mlflow@127.0.0.1:3306/mlflow_runs")
+    # Where to save data:
+    mlflow.start_run(run_name=experimentname)
+    
+
     # We'll load thhe config file, make changes, and write a secondary file for experiments
     mlepConfig = io_utils.load_json('./MLEPServer.json')
 
@@ -43,12 +57,13 @@ def main(experimentname, update, weights, select, filter, kval):
         write_.write(json.dumps(mlepConfig))
 
     
-    # Where to save data:
-    #pdb.set_trace()
-    writePath = 'dataCollect.csv'
-    savePath = open(writePath, 'a')
-    savePath.write(experimentname + ',')
+    # Log relevant details
+    for _key in mlepConfig["config"]:
+        # possible error
+        if _key != "drift_metrics":
+            mlflow.log_param(key, mlepConfig["config"][_key])
     
+
     internalTimer = 0
     streamData = StreamLocal.StreamLocal(data_source="data/2014_to_dec2018.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
 
@@ -59,35 +74,16 @@ def main(experimentname, update, weights, select, filter, kval):
     trainingData.load()
     
 
-    # Let's consider three data delivery models:
-    #   - Batched
-    #   - Streaming (single example)
-    #   - Streaming batched (multiple examples at once)
-
-    # We also have multiple data models - how a single piece of data is delivered:
-    #   - TextPseudoJsonModel 
-    #   - ImageModel
-    #   - VideoModel
-    #   - NumericModel
-    # Each model has these required methods
-    #   
-
     # Now we have the data
     MLEPLearner = MLEPServer.MLEPLearningServer(PATH_TO_CONFIG_FILE)
 
-    # Train with raw training data (for now)
-    # Assumptions - there is a 'text' field; assume we have access to a w2v encoder
-
-    # We'll pass a training data model...
-    # datamodel is a streaming data model??? --> look at streaming in sci-kit multiflow
-
+    # Perform initial traininig
     MLEPLearner.initialTrain(traindata=trainingData)
     io_utils.std_flush("Completed training at", time_utils.readable_time())
     MLEPLearner.addAugmentation(augmentation)
     io_utils.std_flush("Added augmentation at", time_utils.readable_time())
 
-    # let's do something with it
-    totalCounter = []
+    totalCounter = 0.0
     mistakes = []
     while streamData.next():
         if internalTimer < streamData.getObject().getValue("timestamp"):
@@ -95,25 +91,28 @@ def main(experimentname, update, weights, select, filter, kval):
             MLEPLearner.updateTime(internalTimer)
 
         classification = MLEPLearner.classify(streamData.getObject())
-        totalCounter.append(1)
+        totalCounter += 1.0
         if classification != streamData.getLabel():
             mistakes.append(1.0)
         else:
             mistakes.append(0.0)
-        if len(totalCounter) % 100 == 0 and len(totalCounter)>0:
-            io_utils.std_flush("Completed", len(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/sum(totalCounter[-100:]))
-        if len(totalCounter) % 100 == 0 and len(totalCounter)>0:
-            savePath.write(str(sum(mistakes[-100:])/sum(totalCounter[-100:]))+',')
-
+        if totalCounter % 1000 == 0 and totalCounter>0.0:
+            io_utils.std_flush("Completed", int(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/100.0)
+        if totalCounter % 100 == 0 and totalCounter>0.0:
+            running_error = sum(mistakes[-100:])/100.0
+            mlflow.log_metric("running_err", running_error)
     
-    # Perform data collection???
-    savePath.write('\n')
-    savePath.close()    
+    
 
     MLEPLearner.shutdown()
 
-    utils.std_flush("\n-----------------------------\nCOMPLETED\n-----------------------------\n")
-
+    io_utils.std_flush("\n-----------------------------\nCOMPLETED\n-----------------------------\n")
+    
+    sys.stdout.close()
+    
+    mlflow.log_param("run_complete", True)
+    mlflow.log_artifact(LOG_FILE)
+    mlflow.end_run("total_samples", totalCounter)  
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter
