@@ -6,6 +6,7 @@ import mlep.data_model.BatchedLocal as BatchedLocal
 import mlep.data_model.StreamLocal as StreamLocal
 import mlep.data_set.PseudoJsonTweets as PseudoJsonTweets
 import mlep.utils.io_utils as io_utils
+import mlep.utils.time_utils as time_utils
 
 """
 Arguments
@@ -81,8 +82,9 @@ def main(experimentname, update, weights, select, filter, kval):
     # datamodel is a streaming data model??? --> look at streaming in sci-kit multiflow
 
     MLEPLearner.initialTrain(traindata=trainingData)
-    utils.std_flush("Completed training at", utils.readable_time())
+    io_utils.std_flush("Completed training at", time_utils.readable_time())
     MLEPLearner.addAugmentation(augmentation)
+    io_utils.std_flush("Added augmentation at", time_utils.readable_time())
 
     # let's do something with it
     totalCounter = []
@@ -98,8 +100,8 @@ def main(experimentname, update, weights, select, filter, kval):
             mistakes.append(1.0)
         else:
             mistakes.append(0.0)
-        if len(totalCounter) % 1000 == 0 and len(totalCounter)>0:
-            utils.std_flush("Completed", len(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/sum(totalCounter[-100:]))
+        if len(totalCounter) % 100 == 0 and len(totalCounter)>0:
+            io_utils.std_flush("Completed", len(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/sum(totalCounter[-100:]))
         if len(totalCounter) % 100 == 0 and len(totalCounter)>0:
             savePath.write(str(sum(mistakes[-100:])/sum(totalCounter[-100:]))+',')
 
