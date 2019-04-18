@@ -46,6 +46,9 @@ class MLEPLearningServer():
         self.LAST_CLASSIFICATION = 0
         self.LAST_ENSEMBLE = []
 
+        import sys
+        self.HASHMAX = sys.maxsize
+
 
     def setUpModelTracker(self,):
         io_utils.std_flush("\tStarted setting up model tracking at", time_utils.readable_time())
@@ -292,7 +295,9 @@ class MLEPLearningServer():
             self.ENCODERS[encoder_config["name"]] = encoderClass()
             try:
                 self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])
-            except IOError:
+            # Value Error is for joblib load -- need a message to convey as such
+            except (IOError, ValueError) as e:
+                io_utils.std_flush("Encoder load failed with error:", e, ". Attempting fix.")
                 self.ENCODERS[encoder_config["name"]].failCondition(
                         **encoder_config["fail-args"])
                 self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])
@@ -376,11 +381,11 @@ class MLEPLearningServer():
 
         # TODO close the opened one before opening a read connection!!!!!
         if self.MEMORY_MODE[memory_type] == "default":
+            self.MEMORY_TRACKER[memory_type].close()
             loadModule = self.MEMORY_TRACKER[memory_type].__class__.__module__
             loadClass  = self.MEMORY_TRACKER[memory_type].__class__.__name__
             dataModelModule = __import__(loadModule, fromlist=[loadClass])
             dataModelClass = getattr(dataModelModule, loadClass)
-            
             # Get SCHEDULED_DATA_FILE from MEMORY_TRACK
             scheduledTrainingData = dataModelClass(**self.MEMORY_TRACKER[memory_type].__getargs__())
             scheduledTrainingData.load_by_class()
@@ -425,7 +430,7 @@ class MLEPLearningServer():
 
         # Perform lookup
         pipelineModelName = self.MLEPModels[pipelineModel]["scriptName"]
-        pipelineModelModule = __import__("config.LearningModel.%s"%pipelineModelName, fromlist=[pipelineModelName])
+        pipelineModelModule = __import__("mlep.learning_model.%s"%pipelineModelName, fromlist=[pipelineModelName])
         pipelineModelClass = getattr(pipelineModelModule,pipelineModelName)
         # data is a BatchedLocal
         model = pipelineModelClass()
@@ -483,7 +488,7 @@ class MLEPLearningServer():
             currentPipeline = self.MLEPPipelines[pipelineNameDict[modelSaveName]]
             precision, recall, score, pipelineTrained, data_centroid = self.updatePipelineModel(traindata, modelSaveName, currentPipeline)
             timestamp = time.time()
-            modelIdentifier = self.createModelId(timestamp, pipelineTrained, score)
+            modelIdentifier = self.createModelId(timestamp, currentPipeline["name"], score)
             modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
             trainDataSavePath = ""
             testDataSavePath = ""
@@ -570,7 +575,7 @@ class MLEPLearningServer():
             # trainData is BatchedLocal
             precision, recall, score, pipelineTrained, data_centroid = self.generatePipeline(traindata, currentPipeline)
             timestamp = time.time()
-            modelIdentifier = self.createModelId(timestamp, pipelineTrained,score) 
+            modelIdentifier = self.createModelId(timestamp, currentPipeline["name"],score) 
             modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
             trainDataSavePath = ""
             testDataSavePath = ""
@@ -617,7 +622,7 @@ class MLEPLearningServer():
             currentPipeline = self.MLEPPipelines[pipeline]
             precision, recall, score, pipelineTrained, data_centroid = self.generatePipeline(traindata, currentPipeline)
             timestamp = time.time()
-            modelIdentifier = self.createModelId(timestamp, pipelineTrained,score) 
+            modelIdentifier = self.createModelId(timestamp, currentPipeline["name"],score) 
             modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
             trainDataSavePath = ""
             testDataSavePath = ""
@@ -639,7 +644,7 @@ class MLEPLearningServer():
 
     def createModelId(self, timestamp, pipelineName, fscore):
         strA = time_utils.time_to_id(timestamp)
-        strB = time_utils.time_to_id(hash(pipelineName))
+        strB = time_utils.time_to_id(hash(pipelineName)%self.HASHMAX)
         strC = time_utils.time_to_id(fscore, 5)
         return "_".join([strA,strB,strC])
         
@@ -973,11 +978,12 @@ class MLEPLearningServer():
         io_utils.std_flush("\tStarted setting up", memory_type, "memory at" , time_utils.readable_time())
         if mode == "default":
             # Set up default tracker for scheduledDataFile
-            from config.DataModel.BatchedLocal import BatchedLocal
-            from config.DataSet.PseudoJsonTweets import PseudoJsonTweets
+            from mlep.data_model.BatchedLocal import BatchedLocal
+            from mlep.data_set.PseudoJsonTweets import PseudoJsonTweets
             data_source = memory_type + "_memory.json"
             data_source_path = os.path.join('./.MLEPServer/data/', data_source)
             self.MEMORY_TRACKER[memory_type] = BatchedLocal(data_source=data_source_path, data_mode="single", data_set_class=PseudoJsonTweets)
+            self.MEMORY_TRACKER[memory_type].open(mode="a")
             self.MEMORY_MODE[memory_type] = mode
             self.CLASSIFY_MODE[memory_type] = "binary"
         else:
@@ -986,7 +992,7 @@ class MLEPLearningServer():
 
     # data is a dataset object
     def addToMemory(self,memory_type, data):
-        self.MEMORY_TRACKER[memory_type].write(data,"a")
+        self.MEMORY_TRACKER[memory_type].write(data)
     
     def clearMemory(self,memory_type):
         self.MEMORY_TRACKER[memory_type].clear()
