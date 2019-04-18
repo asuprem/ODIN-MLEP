@@ -36,7 +36,7 @@ def main(experimentname, update, weights, select, filter, kval):
     mlflow.set_tracking_uri("mysql://mlflow:mlflow@127.0.0.1:3306/mlflow_runs")
     # Where to save data:
     mlflow.start_run(run_name=experimentname)
-    
+
 
     # We'll load thhe config file, make changes, and write a secondary file for experiments
     mlepConfig = io_utils.load_json('./MLEPServer.json')
@@ -61,7 +61,7 @@ def main(experimentname, update, weights, select, filter, kval):
     for _key in mlepConfig["config"]:
         # possible error
         if _key != "drift_metrics":
-            mlflow.log_param(key, mlepConfig["config"][_key])
+            mlflow.log_param(_key, mlepConfig["config"][_key])
     
 
     internalTimer = 0
