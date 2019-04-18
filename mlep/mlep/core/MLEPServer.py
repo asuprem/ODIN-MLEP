@@ -525,8 +525,8 @@ class MLEPLearningServer():
         if len(temporaryModelStore) > prune_val:
             std_flush("Pruning models -- reducing from", str(len(temporaryModelStore)),"to",str(prune_val),"update models." )
             # keep the highest scoring update models
-            sorted_temporary_model_store = sorted(temporaryModelStore, key=lambda k:k["score"], reverse=True)
-            sorted_temporary_model_store = sorted_temporary_model_store[:prune_val]
+            temporaryModelStore = sorted(temporaryModelStore, key=lambda k:k["score"], reverse=True)
+            temporaryModelStore = temporaryModelStore[:prune_val]
 
         for item in sorted_temporary_model_store:
             # save the model (i.e. host it)
