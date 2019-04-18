@@ -17,7 +17,7 @@ class bowEncoder(mlep.data_encoder.DataEncoder.DataEncoder):
 
         modelFilePath = "./Sources/" + modelFileName
         if not os.path.exists(modelFilePath):
-            raise IOError(self.modelFilePath + " not found.")
+            raise IOError(modelFilePath + " not found.")
         self.model = joblib.load(modelFilePath)
         
     def encode(self, data):
