@@ -92,7 +92,7 @@ def main(experimentname, update, weights, select, filter, kval):
             mistakes.append(0.0)
         if totalCounter % 1000 == 0 and totalCounter>0.0:
             io_utils.std_flush("Completed", int(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/100.0)
-        if totalCounter % 2000 == 0 and totalCounter>0.0:
+        if totalCounter % 4000 == 0 and totalCounter>0.0:
             sys.exit()
         '''
         if totalCounter % 100 == 0 and totalCounter>0.0:
