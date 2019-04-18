@@ -35,7 +35,7 @@ class w2vGeneric(mlep.data_encoder.DataEncoder.DataEncoder):
         self.zero_v = self.zeros(shape=(300,))
         self.tokenize = tokenize
         
-        self.modelPath = "./config/Sources/" + modelPath
+        self.modelPath = "./Sources/" + modelPath
         if not os.path.exists(self.modelPath):
             raise IOError(self.modelPath + " not found.")
         if trainMode == "C":
@@ -68,11 +68,10 @@ class w2vGeneric(mlep.data_encoder.DataEncoder.DataEncoder):
         return transformed_data
 
     def failCondition(self,dimensionSize="5000", seedName="wikipedia"):
-        import pdb
-        pdb.set_trace()
+
         # Check if model already exists
         modelSaveName = "-".join(["w2v","wiki", str(seedName), str(dimensionSize)]) + ".bin"
-        modelSavePath = "./config/Sources/"+modelSaveName
+        modelSavePath = "./Sources/"+modelSaveName
         import os
         if os.path.exists(modelSavePath):
             return True
@@ -101,7 +100,7 @@ class w2vGeneric(mlep.data_encoder.DataEncoder.DataEncoder):
         
         
         wikipagesFileName = str(seed) + '_' + str(dimensionSize) +'.wikipages'
-        wikipagesFilePath = os.path.join('./config/RawSources',wikipagesFileName)
+        wikipagesFilePath = os.path.join('./RawSources',wikipagesFileName)
         listOfWikiPages=[]
         listOfWikiTitles={}
         
@@ -112,7 +111,7 @@ class w2vGeneric(mlep.data_encoder.DataEncoder.DataEncoder):
 
             articleTitleNames=[]
             wikiTitlesFileName = 'enwiki-latest-all-titles-in-ns0'
-            wikiTitlesFilePath = os.path.join('./config/RawSources',wikiTitlesFileName)
+            wikiTitlesFilePath = os.path.join('./RawSources',wikiTitlesFileName)
             with open(wikiTitlesFilePath, 'r') as wikiTitlesFile:
                 for line in wikiTitlesFile:
                     if line.startswith('!')  or line.startswith('`'):

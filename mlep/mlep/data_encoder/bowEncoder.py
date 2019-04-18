@@ -15,9 +15,9 @@ class bowEncoder(mlep.data_encoder.DataEncoder.DataEncoder):
         self.asarray = asarray
         self.cosine_similarity = cosine_similarity
 
-        modelFilePath = "config/Sources/" + modelFileName
+        modelFilePath = "./Sources/" + modelFileName
         if not os.path.exists(modelFilePath):
-            raise IOError(self.modelFilePath + " not found."))
+            raise IOError(self.modelFilePath + " not found.")
         self.model = joblib.load(modelFilePath)
         
     def encode(self, data):
@@ -33,7 +33,7 @@ class bowEncoder(mlep.data_encoder.DataEncoder.DataEncoder):
 
     def failCondition(self,rawFileName="bow.txt", modelFileName="bow.model"):
         
-        bowFilePath = "config/RawSources/" + rawFileName
+        bowFilePath = "./RawSources/" + rawFileName
 
         from sklearn.feature_extraction.text import CountVectorizer
         with open(bowFilePath, 'r') as bow_file:
@@ -45,7 +45,7 @@ class bowEncoder(mlep.data_encoder.DataEncoder.DataEncoder):
         
         # Save the Encoder
         from sklearn.externals import joblib
-        joblib.dump(vectorizer, "config/Sources/"+modelFileName)
+        joblib.dump(vectorizer, "./Sources/"+modelFileName)
         return True        
 
         #self.transformed_data = vectorizer.transform(self.source_data['text'].values)
