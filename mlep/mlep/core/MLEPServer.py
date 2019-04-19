@@ -750,7 +750,7 @@ class MLEPLearningServer():
         if _format == "list":
             if order is None:
                 # We need the order for lists
-                assert(1==2)
+                raise RuntimeError("No order provided for getDetails with 'list' format")
             details = []
             details = [dataDict[item][keyVal] for item in order]
             return details

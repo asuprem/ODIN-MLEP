@@ -50,7 +50,7 @@ class w2vGoogleNews(mlep.data_encoder.DataEncoder.DataEncoder):
 
     def failCondition(self,):
         # no idea how to handle fail condition here
-        assert(1==2)
+        raise NotImplementedError()
 
     def getCentroid(self,data):
         # Need all this fancy stuff because Vectorizer returns a matrix

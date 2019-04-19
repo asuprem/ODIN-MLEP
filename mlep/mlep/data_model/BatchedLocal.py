@@ -59,7 +59,8 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
             with open(self.data_source,"r") as data_source_file:
                 for line in data_source_file:
                     self.data.append(self.data_set_class(line))
-                    assert(self.data[-1].getLabel() in self.classes)
+                    if self.data[-1].getLabel() not in self.classes:
+                        raise ValueError("Label of data item: " + str(self.data[-1].getLabel()) + " does not match any in " + str(self.classes))
                     self.class_data[self.data[-1].getLabel()].append(self.data[-1])
                     self.class_statistics[self.data[-1].getLabel()] += 1
     
