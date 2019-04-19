@@ -31,18 +31,18 @@ warnings.filterwarnings(action='ignore', category=FutureWarning)
 @click.option('--unlabeled_drift_mode', default="EnsembleDisagreement", type=click.Choice(["EnsembleDisagreement"]))
 
 @click.option('--allow_update_schedule', default=False, type=bool)
-@click.option('--update', default=2592000000, type=int)
+@click.option('--update_schedule', default=2592000000, type=int)
 
-@click.option('--weights', default="unweighted", type=click.Choice(["unweighted", "performance"]))
-@click.option('--select', default="recent", type=click.Choice(["train", "historical", "historical-new", "historical-updates","recent","recent-new","recent-updates"]))
-@click.option('--filter', default="no-filter", type=click.Choice(["no-filter", "top-k", "nearest"]))
+@click.option('--weight_method', default="unweighted", type=click.Choice(["unweighted", "performance"]))
+@click.option('--select_method', default="recent", type=click.Choice(["train", "historical", "historical-new", "historical-updates","recent","recent-new","recent-updates"]))
+@click.option('--filter_method', default="no-filter", type=click.Choice(["no-filter", "top-k", "nearest"]))
 @click.option('--kval', default=5, type=int)
 @click.option('--update_prune', default="C", type=str)
 def main(experimentname, 
             allow_explicit_drift, explicit_drift_class, explicit_drift_mode,
             allow_unlabeled_drift, unlabeled_drift_class, unlabeled_drift_mode, 
-            allow_update_schedule, update,
-            weights, select, filter, kval, update_prune):
+            allow_update_schedule, update_schedule,
+            weight_method, select_method, filter_method, kval, update_prune):
 
     # Tracking URI -- yeah it's not very secure, but w/e
     # mlflow.set_tracking_uri("mysql://mlflow:mlflow@127.0.0.1:3306/mlflow_runs")
@@ -59,9 +59,6 @@ def main(experimentname,
         except NameError:
             pass
     
-    PATH_TO_CONFIG_FILE = './ExperimentalConfig.json'
-    with open(PATH_TO_CONFIG_FILE, 'w') as write_:
-        write_.write(json.dumps(mlepConfig))
 
     # Log relevant details
     """
@@ -82,7 +79,7 @@ def main(experimentname,
     
 
     # Now we have the data
-    MLEPLearner = MLEPServer.MLEPLearningServer(PATH_TO_CONFIG_FILE)
+    MLEPLearner = MLEPServer.MLEPLearningServer(config_dict=mlepConfig)
 
     # Perform initial traininig
     MLEPLearner.initialTrain(traindata=trainingData)

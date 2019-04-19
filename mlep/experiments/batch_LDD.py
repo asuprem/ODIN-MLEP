@@ -74,9 +74,9 @@ def main(expstatslog, mlflowlog, earlystop):
                                     "allow_unlabeled_drift": [(False,"")],
                                     "allow_update_schedule": [(False,"")],
 
-                                    "weights":[( "unweighted","U"),( "performance","P" )],
-                                    "select":[(  "recent","RR" ) , ( "recent-new","RN" ) , ( "recent-updates","RU" ) ],
-                                    "filter":[ ("no-filter","F"), ("top-k","T"),("nearest","N")],
+                                    "weight_method":[( "unweighted","U"),( "performance","P" )],
+                                    "select_method":[(  "recent","RR" ) , ( "recent-new","RN" ) , ( "recent-updates","RU" ) ],
+                                    "filter_method":[ ("no-filter","F"), ("top-k","T"),("nearest","N")],
                                     "kval":[("5","5"), ("10","10")]}
     explicit_drift_params = ParameterGrid(explicit_drift_param_grid)
 
@@ -94,17 +94,13 @@ def main(expstatslog, mlflowlog, earlystop):
             mlepConfig["config"][_param] = param_set[_param][0]
         experiment_name = experiment_name[:-1]
     
-        # We'll load thhe config file, make changes, and write a secondary file for experiments
-        CONFIG_PATH = './ExperimentalConfig.json'
-        with open(CONFIG_PATH, 'w') as write_:
-            write_.write(json.dumps(mlepConfig))
-
+        
         # Now we have the Experimental Coonfig we can use for running an experiment
         # generate an experiment name
         exp_status_write.write("--STATUS-- " + experiment_name + "   ")
         exp_status_write.flush()
         try:
-            runExperiment(CONFIG_PATH, mlepConfig, experiment_name, expstatslog, earlystop)
+            runExperiment(mlepConfig, experiment_name, expstatslog, earlystop)
             exp_status_write.write("SUCCESS\n")
         except Exception as e:
             exp_status_write.write("FAILED\n")
@@ -120,7 +116,7 @@ def main(expstatslog, mlflowlog, earlystop):
 
 
 
-def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name, expstatuslog, earlystop):
+def runExperiment(mlepConfig, experiment_name, expstatuslog, earlystop):
 
     # set up mlflow access
     # mlflow.set_tracking_uri -- not needed, defaults to mlruns
@@ -151,7 +147,7 @@ def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name, expstatuslog
     trainingData.load()
 
     # Now we have the data
-    MLEPLearner = MLEPServer.MLEPLearningServer(PATH_TO_CONFIG_FILE)
+    MLEPLearner = MLEPServer.MLEPLearningServer(config_dict=mlepConfig)
 
     # Perform initial traininig
     MLEPLearner.initialTrain(traindata=trainingData)

@@ -19,7 +19,7 @@
         "weight_method":"performance",
         "select_method":"historical",
         "filter_select":"nearest",
-        "k-val": 5,
+        "kval": 5,
         "update_prune":"C",
 
         "drift_metrics":{
