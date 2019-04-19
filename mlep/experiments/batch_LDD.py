@@ -45,10 +45,11 @@ class dumbflow:
 
 
 @click.command()
+@click.argument('runname')
 @click.option('--expstatslog', default=0,type=int, help='0 for stdout only. Any + integer: Log exp to ./logfiles/experiment.log and status to ./logfiles/status.log')
 @click.option('--mlflowlog', default=0,type=int, help='0 for no mlflow. Else it will log to mlflow')
 @click.option('--earlystop', default=0,type=int, help='0 for full run. Else it will stop after earlystop examples')
-def main(expstatslog, mlflowlog, earlystop):
+def main(runname, expstatslog, mlflowlog, earlystop):
     if mlflowlog:
         pass
     else:
@@ -100,7 +101,7 @@ def main(expstatslog, mlflowlog, earlystop):
         exp_status_write.write("--STATUS-- " + experiment_name + "   ")
         exp_status_write.flush()
         try:
-            runExperiment(mlepConfig, experiment_name, expstatslog, earlystop)
+            runExperiment(runname, mlepConfig, experiment_name, expstatslog, earlystop)
             exp_status_write.write("SUCCESS\n")
         except Exception as e:
             exp_status_write.write("FAILED\n")
@@ -116,7 +117,7 @@ def main(expstatslog, mlflowlog, earlystop):
 
 
 
-def runExperiment(mlepConfig, experiment_name, expstatuslog, earlystop):
+def runExperiment(runname, mlepConfig, experiment_name, expstatuslog, earlystop):
 
     # set up mlflow access
     # mlflow.set_tracking_uri -- not needed, defaults to mlruns
