@@ -148,7 +148,7 @@ def runExperiment(runname, mlepConfig, experiment_name, expstatuslog, earlystop)
     trainingData.load()
 
     # Now we have the data
-    MLEPLearner = MLEPServer.MLEPLearningServer(config_dict=mlepConfig)
+    MLEPLearner = MLEPServer.MLEPLearningServer(config_dict=mlepConfig, safe_mode=False)
 
     # Perform initial traininig
     MLEPLearner.initialTrain(traindata=trainingData)
