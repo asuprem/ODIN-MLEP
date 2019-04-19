@@ -380,7 +380,8 @@ class MLEPLearningServer():
 
         # TODO close the opened one before opening a read connection!!!!!
         scheduledTrainingData = self.MEMTRACK.transferMemory(memory_name = memory_type)
-
+        scheduledTrainingData.load_by_class()
+        
         if self.MEMTRACK.getClassifyMode() == "binary":
             negDataLength = scheduledTrainingData.class_size(0)
             posDataLength = scheduledTrainingData.class_size(1)
