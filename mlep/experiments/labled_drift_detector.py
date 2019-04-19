@@ -55,7 +55,7 @@ def main(expstatslog, mlflowlog, earlystop):
         global mlflow
         mlflow = dumbflow()
     if expstatslog:
-        exp_status_write = open(EXP_STATUS, "a", 0)
+        exp_status_write = open(EXP_STATUS, "a")
     else:
         exp_status_write = sys.stdout
 
