@@ -20,7 +20,7 @@
         "select_method":"historical",
         "filter_select":"nearest",
         "k-val": 5,
-        "update-prune":"C",
+        "update_prune":"C",
 
         "drift_metrics":{
             "DDM":"error",
