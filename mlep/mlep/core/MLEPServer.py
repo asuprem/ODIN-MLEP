@@ -5,7 +5,7 @@ import sqlite3
 
 
 class MLEPLearningServer():
-    def __init__(self, PATH_TO_CONFIG_FILE, safe_mode=True):
+    def __init__(self, config_dict, safe_mode=True):
         """Initialize the learning server.
 
         PATH_TO_CONFIG_FILE -- [str] Path to the JSON configuration file.
@@ -17,7 +17,7 @@ class MLEPLearningServer():
         
         self.setUpCoreVars()
         self.configureSqlite()
-        self.loadConfig(PATH_TO_CONFIG_FILE)
+        self.loadConfig(config_dict)
         self.initializeTimers()
         self.setupDirectoryStructure()
         self.setupDbConnection()
@@ -142,14 +142,14 @@ class MLEPLearningServer():
         io_utils.std_flush("\tFinished configuring SQLite at", time_utils.readable_time())
 
 
-    def loadConfig(self, config_path):
+    def loadConfig(self, config_dict):
         """Load JSON configuration file and initialize attributes.
 
         config_path -- [str] Path to the JSON configuration file.
         """
         io_utils.std_flush("\tStarted loading JSON configuration file at", time_utils.readable_time())
 
-        self.config = io_utils.load_json(config_path)
+        self.config = config_dict
         self.MLEPConfig = self.config["config"]
         self.MLEPModels = self.config["models"]
         self.MLEPPipelines = self.getValidPipelines()
@@ -279,8 +279,12 @@ class MLEPLearningServer():
         # Update Model Timer
         self.MLEPModelTimer = time.time()
 
-        io_utils.std_flush("New Models: ", self.MODEL_TRACK["recent-new"])
-        io_utils.std_flush("Update Models: ", self.MODEL_TRACK["recent-updates"])
+        # Clean display
+        self.MODEL_TRACK["recent-new-display"] = [item[:item.find('_')] for item in self.MODEL_TRACK["recent-new"]]
+        self.MODEL_TRACK["recent-updates-display"] = [item[:item.find('_')] for item in self.MODEL_TRACK["recent-updates"]]
+
+        io_utils.std_flush("New Models: ", self.MODEL_TRACK["recent-new-display"])
+        io_utils.std_flush("Update Models: ", self.MODEL_TRACK["recent-updates-display"])
 
 
     def setUpEncoders(self):
@@ -787,15 +791,15 @@ class MLEPLearningServer():
     
     def getTopKPerformanceModels(self,ensembleModelNames):
         # basic optimization:
-        if self.MLEPConfig["k-val"] >= len(ensembleModelNames):
+        if self.MLEPConfig["kval"] >= len(ensembleModelNames):
             pass 
         else:
             modelDetails = self.getModelDetails(ensembleModelNames)
             weights = self.getDetails(modelDetails, 'fscore', 'list', order=ensembleModelNames)
             mappedWeights = zip(weights, ensembleModelNames)
-            mappedWeights.sort(key=lambda tup:tup[0], reverse=True)
+            mappedWeights.sort(key=lambda tup:tup[0], reverse=True) # pylint: disable=no-member
             # Now we have models sorted by performance. Truncate
-            mappedWeights = mappedWeights[:self.MLEPConfig["k-val"]]
+            mappedWeights = mappedWeights[:self.MLEPConfig["kval"]]    # pylint: disable=unsubscriptable-object
             ensembleModelNames = [item[1] for item in mappedWeights]
         return ensembleModelNames
 
@@ -803,7 +807,7 @@ class MLEPLearningServer():
         #data is a DataSet object
 
         # find top-k nearest centroids
-        k_val = self.MLEPConfig["k-val"]
+        k_val = self.MLEPConfig["kval"]
         # Basic optimization:
         # for tests:    if False and k_val >= len(ensembleModelNames):
         # regular       if k_val >= len(ensembleModelNames):

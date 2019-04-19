@@ -192,7 +192,7 @@ The following variables are supported in "config":
     - `"top-k"` -- Only the best *k* performing models are selected
     - `"nearest"` -- For each data sample, we find the *k* training models whose training data is closest to the data sample. 
 
-- `k-val` -- k-value for `filter_select`
+- `kval` -- k-value for `filter_select`
     - A positive integer. This is used in `filter_select`
 
 - `update_prune` -- Whether to prune update models.If update models are not pruned, they can grow linearly or exponentially
