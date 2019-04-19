@@ -25,13 +25,16 @@ warnings.filterwarnings(action='ignore', category=FutureWarning)
 @click.option('--allow_explicit_drift', default=False, type=bool)
 @click.option('--explicit_drift_class', default="LabeledDriftDetector", type=click.Choice(["LabeledDriftDetector"]))
 @click.option('--explicit_drift_mode', default="DDM", type=click.Choice(["DDM", "EDDM", "PageHinkley", "ADWIN"]))
+@click.option('--explicit_update_mode', default="all", type=click.Choice(["all", "errors", "weighted"]))
 
 @click.option('--allow_unlabeled_drift', default=False, type=bool)
 @click.option('--unlabeled_drift_class', default="UnlabeledDriftDetector", type=click.Choice(["UnlabeledDriftDetector"]))
 @click.option('--unlabeled_drift_mode', default="EnsembleDisagreement", type=click.Choice(["EnsembleDisagreement"]))
+@click.option('--unlabeled_update_mode', default="all", type=click.Choice(["all", "errors", "weighted"]))
 
 @click.option('--allow_update_schedule', default=False, type=bool)
 @click.option('--update_schedule', default=2592000000, type=int)
+@click.option('--schedule_update_mode', default="all", type=click.Choice(["all", "errors", "weighted"]))
 
 @click.option('--weight_method', default="unweighted", type=click.Choice(["unweighted", "performance"]))
 @click.option('--select_method', default="recent", type=click.Choice(["train", "historical", "historical-new", "historical-updates","recent","recent-new","recent-updates"]))
@@ -39,9 +42,9 @@ warnings.filterwarnings(action='ignore', category=FutureWarning)
 @click.option('--kval', default=5, type=int)
 @click.option('--update_prune', default="C", type=str)
 def main(experimentname, 
-            allow_explicit_drift, explicit_drift_class, explicit_drift_mode,
-            allow_unlabeled_drift, unlabeled_drift_class, unlabeled_drift_mode, 
-            allow_update_schedule, update_schedule,
+            allow_explicit_drift, explicit_drift_class, explicit_drift_mode, explicit_update_mode,
+            allow_unlabeled_drift, unlabeled_drift_class, unlabeled_drift_mode, unlabeled_update_mode,
+            allow_update_schedule, update_schedule, schedule_update_mode,
             weight_method, select_method, filter_method, kval, update_prune):
 
     # Tracking URI -- yeah it's not very secure, but w/e

@@ -345,7 +345,13 @@ class MLEPLearningServer():
             if self.MEMTRACK.isEmpty(memory_name="scheduled"):
                 io_utils.std_flush("Attempted update at", time_utils.ms_to_readable(self.overallTimer), ", but 0 data samples." ) 
             else:  
-                self.MLEPUpdate(memory_type="scheduled")
+                # Select the right memory (all or errors)
+                if self.MLEPConfig["schedule_update_mode"] == "all":
+                    self.MLEPUpdate(memory_type="scheduled")
+                elif self.MLEPConfig["schedule_update_mode"] == "errors":
+                    self.MLEPUpdate(memory_type="scheduled_errors")
+                else:
+                    raise NotImplementedError()
             
             self.scheduledFilterGenerateUpdateTimer = self.overallTimer
     
@@ -381,7 +387,7 @@ class MLEPLearningServer():
         # TODO close the opened one before opening a read connection!!!!!
         scheduledTrainingData = self.MEMTRACK.transferMemory(memory_name = memory_type)
         scheduledTrainingData.load_by_class()
-        
+
         if self.MEMTRACK.getClassifyMode() == "binary":
             negDataLength = scheduledTrainingData.class_size(0)
             posDataLength = scheduledTrainingData.class_size(1)
@@ -874,10 +880,7 @@ class MLEPLearningServer():
             ensembleModelNames = [item[2] for item in kClosest]
         return ensembleModelNames
 
-    def classify(self, data):
-        # Add to memories
-        for memory_type in self.MEMTRACK.getMemoryNames():
-            self.MEMTRACK.addToMemory(memory_name=memory_type, data=data)
+    def classify(self, data):          
 
         # First set up list of correct models
         ensembleModelNames = self.getValidModels()
@@ -960,22 +963,48 @@ class MLEPLearningServer():
 
         self.updateMetrics(classification, error, ensembleError, ensembleRaw, ensembleWeighted)
 
+        # add to scheduled memory
+        if self.MLEPConfig["allow_scheduled_update"]:
+            self.MEMTRACK.addToMemory(memory_name="scheduled", data=data)
+            if error:
+                self.MEMTRACK.addToMemory(memory_name="scheduled_errors", data=data)
+            # No drift detection necessary
+            # No MLEPUpdate necessary
+
         # perform explicit drift detection and update:
         if self.MLEPConfig["allow_explicit_drift"]:
             # send the input appropriate for the drift mode
             # shuld be updated to be more readble; update so that users can define their own drift tracking method
+
+            # add error -- 
+            self.MEMTRACK.addToMemory(memory_name="explicit_drift", data=data)
+            if error:
+                self.MEMTRACK.addToMemory(memory_name="explicit_errors", data=data)
+
+
             driftDetected = self.EXPLICIT_DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["drift_metrics"][self.MLEPConfig["explicit_drift_mode"]]])
             if driftDetected:
                 io_utils.std_flush(self.MLEPConfig["explicit_drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
                 self.EXPLICIT_DRIFT_TRACKER.reset()
                 
                 # perform drift update (big whoo)
-                self.MLEPUpdate(memory_type="explicit_drift")
+                # perform update with the correct memory type
+                if self.MLEPConfig["explicit_update_mode"] == "all":
+                    self.MLEPUpdate(memory_type="explicit_drift")
+                elif self.MLEPConfig["explicit_update_mode"] == "errors":
+                    self.MLEPUpdate(memory_type="explicit_errors")
+                else:
+                    raise NotImplementedError()
+                
 
         # perform explicit drift detection and update:
         if self.MLEPConfig["allow_unlabeled_drift"]:
             # send the input appropriate for the drift mode
             # shuld be updated to be more readble; update so that users can define their own drift tracking method
+            # TODO HANDLE UNLABELED DATA IN ACTUALITY
+            self.MEMTRACK.addToMemory(memory_name="unlabeled_drift", data=data)
+            if error:
+                self.MEMTRACK.addToMemory(memory_name="unlabeled_errors", data=data)
 
             driftDetected = self.UNLABELED_DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["drift_metrics"][self.MLEPConfig["unlabeled_drift_mode"]]])
             if driftDetected:
@@ -983,7 +1012,13 @@ class MLEPLearningServer():
                 self.UNLABELED_DRIFT_TRACKER.reset()
                 
                 # perform drift update (big whoo)
-                self.MLEPUpdate(memory_type="unlabeled_drift")
+                # perform update with the correct memory type
+                if self.MLEPConfig["unlabeled_update_mode"] == "all":
+                    self.MLEPUpdate(memory_type="unlabeled_drift")
+                elif self.MLEPConfig["unlabeled_update_mode"] == "errors":
+                    self.MLEPUpdate(memory_type="unlabeled_errors")
+                else:
+                    raise NotImplementedError()
         
         self.saveClassification(classification)
         self.saveEnsemble(ensembleModelNames)
@@ -1005,14 +1040,34 @@ class MLEPLearningServer():
 
         if self.MLEPConfig["allow_update_schedule"]:
             self.MEMTRACK.addNewMemory(memory_name="scheduled",memory_store="local", memory_path="./.MLEPServer/data/")
+            self.MEMTRACK.addNewMemory(memory_name="scheduled_errors",memory_store="local", memory_path="./.MLEPServer/data/")
             io_utils.std_flush("\t\tAdded scheduled memory")
 
         if self.MLEPConfig["allow_explicit_drift"]:
             self.MEMTRACK.addNewMemory(memory_name="explicit_drift",memory_store="local", memory_path="./.MLEPServer/data/")
+            self.MEMTRACK.addNewMemory(memory_name="explicit_errors",memory_store="local", memory_path="./.MLEPServer/data/")
             io_utils.std_flush("\t\tAdded explicit drift memory")
 
         if self.MLEPConfig["allow_unlabeled_drift"]:
             self.MEMTRACK.addNewMemory(memory_name="unlabeled_drift",memory_store="local", memory_path="./.MLEPServer/data/")
+            self.MEMTRACK.addNewMemory(memory_name="unlabeled_errors",memory_store="local", memory_path="./.MLEPServer/data/")
             io_utils.std_flush("\t\tAdded unlabeled drift memory")
         
         io_utils.std_flush("\tFinished setting up memories at", time_utils.readable_time())
+
+
+"""
+{
+    "name": "Python: SimpleExperiment",
+    "type": "python",
+    "request": "launch",
+    "program": "${workspaceFolder}/mlep/experiments/single_experiment.py",
+    "console": "integratedTerminal",
+    "args": [
+        "test",
+        "--allow_explicit_drift", "True",
+        "--allow_update_schedule", "True"
+    ],
+    "cwd":"${workspaceFolder}/mlep/experiments/"
+},
+"""
