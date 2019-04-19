@@ -207,7 +207,7 @@ def runExperiment(PATH_TO_CONFIG_FILE, mlepConfig, experiment_name, expstatuslog
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter
 
 
 
