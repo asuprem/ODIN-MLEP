@@ -52,11 +52,7 @@ class bowEncoder(mlep.data_encoder.DataEncoder.DataEncoder):
 
     def getCentroid(self,data):
         # Need all this fancy stuff because Vectorizer returns a matrix
-        try:
-            return 1.0 - self.squeeze(self.asarray(data.mean(axis=0)))
-        except ZeroDivisionError:
-            import pdb
-            pdb.set_trace()
+        return 1.0 - self.squeeze(self.asarray(data.mean(axis=0)))
 
         #return data.mean(axis=0)
 
