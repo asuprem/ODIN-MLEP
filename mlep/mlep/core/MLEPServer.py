@@ -310,16 +310,6 @@ class MLEPLearningServer():
                 
         io_utils.std_flush("\tFinished setting up encoders at", time_utils.readable_time())
 
-    def getValidPipelines(self,):
-        """ get pipelines that are, well, valid """
-        return {item:self.config["pipelines"][item] for item in self.config["pipelines"] if self.config["pipelines"][item]["valid"]}
-
-    def getValidEncoders(self,):
-        """ get valid encoders """
-
-        # iterate through pipelines, get encoders that are valid, and return those from config->encoders
-        return {item:self.config["encoders"][item] for item in {self.MLEPPipelines[_item]["encoder"]:1 for _item in self.MLEPPipelines}}
-
     def shutdown(self):
         # save models - because they are all heald in memory??
         # Access the save path
@@ -770,8 +760,17 @@ class MLEPLearningServer():
             dictResults[entry[0]].append((entry[1], entry[2]))
         return dictResults
     
-    def getValidModels(self):
-        
+    def getValidPipelines(self,):
+        """ get pipelines that are, well, valid """
+        return {item:self.config["pipelines"][item] for item in self.config["pipelines"] if self.config["pipelines"][item]["valid"]}
+
+    def getValidEncoders(self,):
+        """ get valid encoders """
+        # iterate through pipelines, get encoders that are valid, and return those from config->encoders
+        return {item:self.config["encoders"][item] for item in {self.MLEPPipelines[_item]["encoder"]:1 for _item in self.MLEPPipelines}}
+
+    def getValidModels(self,):
+        """ get valid models """    
         ensembleModelNames = [item for item in self.MODEL_TRACK[self.MLEPConfig["select_method"]]]
         return ensembleModelNames
     
