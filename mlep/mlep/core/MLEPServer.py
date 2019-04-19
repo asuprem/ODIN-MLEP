@@ -964,7 +964,7 @@ class MLEPLearningServer():
         self.updateMetrics(classification, error, ensembleError, ensembleRaw, ensembleWeighted)
 
         # add to scheduled memory
-        if self.MLEPConfig["allow_scheduled_update"]:
+        if self.MLEPConfig["allow_update_schedule"]:
             self.MEMTRACK.addToMemory(memory_name="scheduled", data=data)
             if error:
                 self.MEMTRACK.addToMemory(memory_name="scheduled_errors", data=data)

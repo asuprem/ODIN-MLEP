@@ -71,6 +71,7 @@ def main(runname, expstatslog, mlflowlog, earlystop):
     explicit_drift_param_grid = {   "allow_explicit_drift": [(True,"ExpDr")],
                                     "explicit_drift_class": [("LabeledDriftDetector","LDD")],
                                     "explicit_drift_mode":[ ("PageHinkley", "PageHinkley"), ("ADWIN","ADWIN"),  ("EDDM","EDDM"),("DDM","DDM")], 
+                                    "explicit_update_mode":[("all","A"), ("errors", "E")],
 
                                     "allow_unlabeled_drift": [(False,"")],
                                     "allow_update_schedule": [(False,"")],
@@ -83,7 +84,8 @@ def main(runname, expstatslog, mlflowlog, earlystop):
 
     for param_set in explicit_drift_params:
         # This is an experiment
-        
+        if param_set["explicit_update_mode"][0] == "all":
+            continue
         # Load up configuration file
         mlepConfig = io_utils.load_json('./MLEPServer.json')
 
