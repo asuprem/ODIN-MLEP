@@ -11,6 +11,11 @@
 apikey
 # Ignore in-memory sqlite database. It's actually created on-disk as well, so this line has to be added
 *memory*cache*
+# Ignore egg files
+*.egg-info
+# Ignore pycache files
+**/__pycache__
+**/mlruns
 
 
 # ---------- LOCAL FOLDERS (Abhijit) ----------------------
@@ -19,8 +24,10 @@ old/*
 # Artifacts of OneDrive on computer
 *-Suprem-*
 # Folders used during local experimentation
-outputs/
+experiment/outputs/
 local/
+# Virtualenv
+mlenv/
 
 
 # ----------- MLEP IGNORES -------------------------------
@@ -35,20 +42,17 @@ config/RawSources/*
 # Configuration file generated during execution. Tracking not needed
 config/configuration/ExperimentalConfig.json
 
+**/Sources
+**/RawSources
+**/logfiles
 
 # ------------- OTHER IGNORES ----------------------------
 # Ignore data files not used for actual execution. These include local files used to debug some parts of code, but would just pollute the git.
-data/archive/*
-data/*.json
-data/online/
-data/gooddata/
+experiment/data/archive/*
+experiment/data/*.json
+experiment/data/online/
+experiment/data/gooddata/
 
+notes
 
-
-
-
-
-
-
-
-
+mlep/experiments/logfiles/application.log

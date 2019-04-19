@@ -1,3 +1,12 @@
+# WIP
+
+installing as a development package
+
+    cd into mlep
+    pip3 install -e .
+    
+
+
 # MLEP
 MLEP is a Machine Learning Event Processor. It is a system to perform event detection in drifting
 data.
@@ -185,6 +194,12 @@ The following variables are supported in "config":
 
 - `k-val` -- k-value for `filter_select`
     - A positive integer. This is used in `filter_select`
+
+- `update-prune` -- Whether to prune update models.If update models are not pruned, they can grow linearly or exponentially
+    - `"N"` -- No pruning. All models generated in the prior generate/update step are updated
+    - `"C"` -- Prune to number of valid pipelines. So if there are two valid pipelines, keep the two best performing update models (they don't have to be from different pipelines).
+    - `"[INT]"` -- Give an integer value as a string (e.g. `"update-prune":"5"`). The Update step will prune to this number of models, keeping the highest performing ones.
+
 
 ## models
 
