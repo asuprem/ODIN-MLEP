@@ -69,7 +69,7 @@ def main(expstatslog, mlflowlog, earlystop):
     # Set up explicit drift detection params
     explicit_drift_param_grid = {   "allow_explicit_drift": [(True,"ExpDr")],
                                     "explicit_drift_class": [("LabeledDriftDetector","LDD")],
-                                    "explicit_drift_mode":[("DDM","DDM"), ("EDDM","EDDM"), ("ADWIN","ADWIN"), ("PageHinkley", "PageHinkley")], 
+                                    "explicit_drift_mode":[ ("PageHinkley", "PageHinkley"), ("ADWIN","ADWIN"),,  ("EDDM","EDDM"),("DDM","DDM")], 
 
                                     "allow_unlabeled_drift": [(False,"")],
                                     "allow_update_schedule": [(False,"")],
