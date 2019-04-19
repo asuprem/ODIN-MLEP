@@ -78,7 +78,7 @@ def main(runname, expstatslog, mlflowlog, earlystop):
                                     "weight_method":[( "unweighted","U"),( "performance","P" )],
                                     "select_method":[(  "recent","RR" ) , ( "recent-new","RN" ) , ( "recent-updates","RU" ) ],
                                     "filter_method":[ ("no-filter","F"), ("top-k","T"),("nearest","N")],
-                                    "kval":[("5","5"), ("10","10")]}
+                                    "kval":[(5,"5"), (10,"10")]}
     explicit_drift_params = ParameterGrid(explicit_drift_param_grid)
 
     for param_set in explicit_drift_params:
