@@ -16,53 +16,60 @@ Arguments
 python application.py experimentName [updateSchedule] [weightMethod] [selectMethod] [filterMethod] [kVal]
 
 """
-LOG_FILE = "./logfiles/application.log"
+import warnings
+warnings.filterwarnings(action='ignore', category=FutureWarning)
 
 @click.command()
 @click.argument('experimentname')
-@click.option('--update', type=int)
-@click.option('--weights', type=click.Choice(["unweighted", "performance"]))
-@click.option('--select', type=click.Choice(["train", "historical", "historical-new", "historical-updates","recent","recent-new","recent-updates"]))
-@click.option('--filter', type=click.Choice(["no-filter", "top-k", "nearest"]))
-@click.option('--kval', type=int)
-def main(experimentname, update, weights, select, filter, kval):
-    # set up logging
-    if not os.path.exists('./logfiles'):
-        os.makedirs('logfiles')
 
-    sys.stdout = open(LOG_FILE, "w")
+@click.option('--allow_explicit_drift', default=False, type=bool)
+@click.option('--explicit_drift_class', default="LabeledDriftDetector", type=click.Choice(["LabeledDriftDetector"]))
+@click.option('--explicit_drift_mode', default="DDM", type=click.Choice(["DDM", "EDDM", "PageHinkley", "ADWIN"]))
+
+@click.option('--allow_unlabeled_drift', default=False, type=bool)
+@click.option('--unlabeled_drift_class', default="UnlabeledDriftDetector", type=click.Choice(["UnlabeledDriftDetector"]))
+@click.option('--unlabeled_drift_mode', default="EnsembleDisagreement", type=click.Choice(["EnsembleDisagreement"]))
+
+@click.option('--allow_update_schedule', default=False, type=bool)
+@click.option('--update', default=2592000000, type=int)
+
+@click.option('--weights', default="unweighted", type=click.Choice(["unweighted", "performance"]))
+@click.option('--select', default="recent", type=click.Choice(["train", "historical", "historical-new", "historical-updates","recent","recent-new","recent-updates"]))
+@click.option('--filter', default="no-filter", type=click.Choice(["no-filter", "top-k", "nearest"]))
+@click.option('--kval', default=5, type=int)
+@click.option('--update_prune', default="C", type=str)
+def main(experimentname, 
+            allow_explicit_drift, explicit_drift_class, explicit_drift_mode,
+            allow_unlabeled_drift, unlabeled_drift_class, unlabeled_drift_mode, 
+            allow_update_schedule, update,
+            weights, select, filter, kval, update_prune):
 
     # Tracking URI -- yeah it's not very secure, but w/e
-    mlflow.set_tracking_uri("mysql://mlflow:mlflow@127.0.0.1:3306/mlflow_runs")
+    # mlflow.set_tracking_uri("mysql://mlflow:mlflow@127.0.0.1:3306/mlflow_runs")
     # Where to save data:
-    mlflow.start_run(run_name=experimentname)
+    # mlflow.start_run(run_name=experimentname)
 
 
-    # We'll load thhe config file, make changes, and write a secondary file for experiments
+    # We'll load the config file, make changes, and write a secondary file for experiments
     mlepConfig = io_utils.load_json('./MLEPServer.json')
 
-    if update is not None:
-        mlepConfig["config"]['update_schedule'] = update
-    if weights is not None:
-        mlepConfig["config"]['weight_method'] = weights
-    if select is not None:
-        mlepConfig["config"]['select_method'] = select
-    if filter is not None:
-        mlepConfig["config"]['filter_select'] = filter
-    if kval is not None:
-        mlepConfig["config"]['k-val'] = kval
+    for _item in mlepConfig["config"]:
+        try:
+            mlepConfig["config"][_item] = eval(_item)
+        except NameError:
+            pass
     
     PATH_TO_CONFIG_FILE = './ExperimentalConfig.json'
     with open(PATH_TO_CONFIG_FILE, 'w') as write_:
         write_.write(json.dumps(mlepConfig))
 
-    
     # Log relevant details
+    """
     for _key in mlepConfig["config"]:
         # possible error
         if _key != "drift_metrics":
             mlflow.log_param(_key, mlepConfig["config"][_key])
-    
+    """
 
     internalTimer = 0
     streamData = StreamLocal.StreamLocal(data_source="data/2014_to_dec2018.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
@@ -100,7 +107,8 @@ def main(experimentname, update, weights, select, filter, kval):
             io_utils.std_flush("Completed", int(totalCounter), " samples, with running error (past 100) of", sum(mistakes[-100:])/100.0)
         if totalCounter % 100 == 0 and totalCounter>0.0:
             running_error = sum(mistakes[-100:])/100.0
-            mlflow.log_metric("running_err"+str(int(totalCounter/100)), running_error)
+            io_utils.std_flush("\tCompleted", int(totalCounter), " samples, with running error (past 100) of", running_error)
+            #mlflow.log_metric("running_err"+str(int(totalCounter/100)), running_error)
     
     
 
@@ -108,12 +116,10 @@ def main(experimentname, update, weights, select, filter, kval):
 
     io_utils.std_flush("\n-----------------------------\nCOMPLETED\n-----------------------------\n")
     
-    sys.stdout.close()
     
-    mlflow.log_param("run_complete", True)
-    mlflow.log_param("total_samples", totalCounter)  
-    mlflow.log_artifact(LOG_FILE)
-    mlflow.end_run()
+    #mlflow.log_param("run_complete", True)
+    #mlflow.log_param("total_samples", totalCounter)  
+    #mlflow.end_run()
 
 if __name__ == "__main__":
     main()  # pylint: disable=no-value-for-parameter
