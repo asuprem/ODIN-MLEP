@@ -1,5 +1,5 @@
-# WIP 
-(<span style="color:red"> Ignore this for now</span>)
+# WIP (<span style="color:red"> Ignore this for now</span>)
+
 installing as a development package
 
     cd into mlep
