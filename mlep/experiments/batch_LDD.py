@@ -61,9 +61,9 @@ def main(runname, expstatslog, mlflowlog, earlystop):
         exp_status_write = sys.stdout
 
     exp_status_write.write("\n\n\n\n")
-    exp_status_write.write("--------------------------------------")
-    exp_status_write.write("  BEGINNING NEW EXECUTION AT " + str(time_utils.readable_time("%Y-%m-%d %H:%M:%S"))) 
-    exp_status_write.write("  --------------------------------------"+ "\n\n")
+    exp_status_write.write("--------------------------")
+    exp_status_write.write("  BEGINNING NEW EXECUTION (" + runname + ") AT " + str(time_utils.readable_time("%Y-%m-%d %H:%M:%S"))) 
+    exp_status_write.write("  ------------------------"+ "\n\n")
     # We are tracking drift adaptivity
     # namely labeled drift detection
 
