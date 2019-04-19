@@ -3,3 +3,10 @@
 > Add BatchedLocalWriter
 > Add BatchedLocalLoader
 > Add BatchedLocalClassLoader
+
+> Add MODEL_PRUNE -- prune old models from database (and memory)
+> Add synthetic datasets
+> add ARF
+
+> add single-model policy -- only update piplines without generating any new...
+> plus validation -- select MUST be recent-updates, etc...

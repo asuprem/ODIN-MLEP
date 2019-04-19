@@ -112,6 +112,11 @@ def main(runname, expstatslog, mlflowlog, earlystop):
             mlflow.end_run()
         exp_status_write.flush()
 
+
+    exp_status_write.write("\n\n")
+    exp_status_write.write("--------------------------")
+    exp_status_write.write("  FINISHED EXECUTION OF (" + runname + ") AT " + str(time_utils.readable_time("%Y-%m-%d %H:%M:%S"))) 
+    exp_status_write.write("  ------------------------"+ "\n\n")
     exp_status_write.close()
 
 
