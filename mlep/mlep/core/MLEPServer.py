@@ -27,9 +27,6 @@ class MLEPLearningServer():
         self.setUpExplicitDriftTracker()
         self.setUpUnlabeledDriftTracker()
         self.setUpMemories()
-        self.memoryTrack(memory_type="scheduled", mode="default")
-        self.memoryTrack(memory_type="explicit_drift", mode="default")
-        self.memoryTrack(memory_type="unlabeled_drift", mode="default")
         self.setUpModelTracker()
 
         io_utils.std_flush("Finished initializing MLEP...")
@@ -246,6 +243,7 @@ class MLEPLearningServer():
         RECENT_UPDATES = self.getUpdateModelsSince(self.MLEPModelTimer)
         # All models in prior update
         RECENT_MODELS = self.getModelsSince(self.MLEPModelTimer)
+        
         # All models
         self.MODEL_TRACK["historical"] = self.getModelsSince()
         # All generated models
@@ -373,8 +371,10 @@ class MLEPLearningServer():
         io_utils.std_flush("Completed", memory_type, "-memory based Model generation at", time_utils.readable_time())
 
         # update
-        self.update(TrainingData,models_to_update='recent')
+        self.update(TrainingData,models_to_update=self.MLEPConfig["models_to_update"])
         io_utils.std_flush("Completed", memory_type, "-memory based Model Update at", time_utils.readable_time())
+
+        # Now we update model store.
         self.updateModelStore()
 
     def getTrainingData(self, memory_type="scheduled"):
@@ -510,8 +510,8 @@ class MLEPLearningServer():
             modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
             trainDataSavePath = ""
             testDataSavePath = ""
-            # TODO add parent model for this model!!!!!
-
+            
+            # We temporarily load to dictionary for sorting later.
             dicta={}
             dicta["name"] = modelSavePath
             dicta["MODEL"] = pipelineTrained
@@ -797,7 +797,7 @@ class MLEPLearningServer():
             modelDetails = self.getModelDetails(ensembleModelNames)
             weights = self.getDetails(modelDetails, 'fscore', 'list', order=ensembleModelNames)
             mappedWeights = zip(weights, ensembleModelNames)
-            mappedWeights.sort(key=lambda tup:tup[0], reverse=True) # pylint: disable=no-member
+            mappedWeights = sorted(mappedWeights, key=lambda tup:tup[0], reverse=True) # pylint: disable=no-member
             # Now we have models sorted by performance. Truncate
             mappedWeights = mappedWeights[:self.MLEPConfig["kval"]]    # pylint: disable=unsubscriptable-object
             ensembleModelNames = [item[1] for item in mappedWeights]
@@ -1017,6 +1017,16 @@ class MLEPLearningServer():
         self.MEMORY_TRACKER = {}
         self.MEMORY_MODE = {}
         self.CLASSIFY_MODE = {}
+
+        if self.MLEPConfig["allow_update_schedule"]:
+            self.memoryTrack(memory_type="scheduled", mode="default")
+        if self.MLEPConfig["allow_explicit_drift"]:
+            self.memoryTrack(memory_type="explicit_drift", mode="default")
+        if self.MLEPConfig["allow_unlabeled_drift"]:
+            self.memoryTrack(memory_type="unlabeled_drift", mode="default")
+
+
+
         io_utils.std_flush("\tFinished setting up memories at", time_utils.readable_time())
 
     def memoryTrack(self,memory_type = "scheduled", mode="default"):

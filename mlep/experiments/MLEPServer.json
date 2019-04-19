@@ -21,6 +21,7 @@
         "filter_select":"nearest",
         "kval": 5,
         "update_prune":"C",
+        "models_to_update":"recent",
 
         "drift_metrics":{
             "DDM":"error",
