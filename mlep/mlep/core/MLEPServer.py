@@ -5,13 +5,16 @@ import sqlite3
 
 
 class MLEPLearningServer():
-    def __init__(self, PATH_TO_CONFIG_FILE):
+    def __init__(self, PATH_TO_CONFIG_FILE, safe_mode=True):
         """Initialize the learning server.
 
         PATH_TO_CONFIG_FILE -- [str] Path to the JSON configuration file.
         """
         io_utils.std_flush("Initializing MLEP...")
 
+        # In safe mode, existing ./.MLEPServer is not deleted
+        self.SAFE_MODE=safe_mode
+        
         self.setUpCoreVars()
         self.configureSqlite()
         self.loadConfig(PATH_TO_CONFIG_FILE)
@@ -179,11 +182,12 @@ class MLEPLearningServer():
         self.SOURCE_DIR = "./.MLEPServer"
         self.setups = ['models', 'data', 'modelSerials', 'db']
         self.DB_FILE = './.MLEPServer/db/MLEP.db'
-        # Remove SOURCE_DIR if it already exists.
-        try:
-            shutil.rmtree(self.SOURCE_DIR)
-        except Exception as e:
-            io_utils.std_flush("Error deleting directory tree: ", str(e))
+        # Remove SOURCE_DIR if it already exists and we are in normal mode
+        if os.path.exists(self.SOURCE_DIR):
+            if self.SAFE_MODE:
+                raise RuntimeError("There is an existing ./.MLEPServer folder. Delete it or start MLEPServer without safe_mode=True")
+            else:
+                shutil.rmtree(self.SOURCE_DIR)
         # Make directory tree.
         os.makedirs(self.SOURCE_DIR)
         for directory in self.setups:
@@ -319,6 +323,8 @@ class MLEPLearningServer():
         # Access the save path
         # pick.dump models to that path
         pass
+        import shutil
+        shutil.rmtree(self.SOURCE_DIR)
         self.closeDBConnection()
 
         
@@ -475,7 +481,7 @@ class MLEPLearningServer():
         # push details to DB
         # if copy's source is in MODEL_TRACK["recent"], add it to MODEL_TRACK["recent"] as well
         prune_val = 5
-        if self.MLEPConfig["update-prune"] == "C":
+        if self.MLEPConfig["update_prune"] == "C":
             # Keep constant to new
             prune_val = len(self.MLEPPipelines)
         else:
