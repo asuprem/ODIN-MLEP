@@ -128,7 +128,7 @@ def runExperiment(runname, mlepConfig, experiment_name, expstatuslog, earlystop)
         sys.stdout = dumbwrite()
 
     mlflow.set_tracking_uri("mysql://mlflow:mlflow@127.0.0.1:3306/mlflow_runs")
-    mlflow.start_run(run_name="explicit_drift_analysis_v3")
+    mlflow.start_run(run_name=runname)
 
     # Log relevant details
     for _key in mlepConfig["config"]:
