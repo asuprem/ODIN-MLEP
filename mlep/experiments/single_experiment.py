@@ -1,6 +1,6 @@
 import os, time, json, sys, pdb, click
 
-import mlflow
+# import mlflow
 
 import mlep.core.MLEPServer as MLEPServer
 
@@ -79,7 +79,7 @@ def main(experimentname,
     
 
     # Now we have the data
-    MLEPLearner = MLEPServer.MLEPLearningServer(config_dict=mlepConfig)
+    MLEPLearner = MLEPServer.MLEPLearningServer(config_dict=mlepConfig, safe_mode=False)
 
     # Perform initial traininig
     MLEPLearner.initialTrain(traindata=trainingData)

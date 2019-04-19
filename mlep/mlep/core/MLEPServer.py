@@ -352,19 +352,18 @@ class MLEPLearningServer():
         # Check scheduled time difference if there need to be updates
         if self.enoughTimeElapsedBetweenUpdates():
             # TODO change this to check if scheduledMemoryTrack exists
-            if not self.MEMORY_TRACKER["scheduled"].hasSamples():
+            if self.MEMTRACK.isEmpty(memory_name="scheduled"):
                 io_utils.std_flush("Attempted update at", time_utils.ms_to_readable(self.overallTimer), ", but 0 data samples." ) 
             else:  
                 self.MLEPUpdate(memory_type="scheduled")
-
             
             self.scheduledFilterGenerateUpdateTimer = self.overallTimer
     
     def MLEPUpdate(self,memory_type="scheduled"):
-        io_utils.std_flush("Update using", memory_type, "-memory at", time_utils.ms_to_readable(self.overallTimer), "with", self.MEMORY_TRACKER[memory_type].memorySize(),"data samples." )
+        io_utils.std_flush("Update using", memory_type, "-memory at", time_utils.ms_to_readable(self.overallTimer), "with", self.MEMTRACK.memorySize(memory_name=memory_type),"data samples." )
         # Get the training data from Memory
         TrainingData = self.getTrainingData(memory_type=memory_type)
-        self.clearMemory(memory_type=memory_type)
+        self.MEMTRACK.clearMemory(memory_name=memory_type)
         
         # Generate
         self.train(TrainingData)
@@ -390,44 +389,31 @@ class MLEPLearningServer():
         scheduledTrainingData = None
 
         # TODO close the opened one before opening a read connection!!!!!
-        if self.MEMORY_MODE[memory_type] == "default":
-            self.MEMORY_TRACKER[memory_type].close()
-            loadModule = self.MEMORY_TRACKER[memory_type].__class__.__module__
-            loadClass  = self.MEMORY_TRACKER[memory_type].__class__.__name__
-            dataModelModule = __import__(loadModule, fromlist=[loadClass])
-            dataModelClass = getattr(dataModelModule, loadClass)
-            # Get SCHEDULED_DATA_FILE from MEMORY_TRACK
-            scheduledTrainingData = dataModelClass(**self.MEMORY_TRACKER[memory_type].__getargs__())
-            scheduledTrainingData.load_by_class()
-            #trainDataLength = scheduledTrainingData.all_class_sizes()
+        scheduledTrainingData = self.MEMTRACK.transferMemory(memory_name = memory_type)
 
-
-            if self.CLASSIFY_MODE[memory_type] == "binary":
-                negDataLength = scheduledTrainingData.class_size(0)
-                posDataLength = scheduledTrainingData.class_size(1)
-                if negDataLength < 0.8*posDataLength:
-                    io_utils.std_flush("Too few negative results. Adding more")
-                    if self.AUGMENT.class_size(0) < posDataLength:
-                        # We'll need a random sampled for self.negatives BatchedLoad
-                        scheduledTrainingData.augment_by_class(self.AUGMENT.getObjectsByClass(0), 0)
-                    else:
-                        scheduledTrainingData.augment_by_class(random.sample(self.AUGMENT.getObjectsByClass(0), posDataLength-negDataLength), 0)
-                elif negDataLength > 1.2 *posDataLength:
-                    # Too many negative data; we'll prune some
-                    io_utils.std_flush("Too many  negative samples. Pruning")
-                    scheduledTrainingData.prune_by_class(0,negDataLength-posDataLength)
-                    # TODO
+        if self.MEMTRACK.getClassifyMode() == "binary":
+            negDataLength = scheduledTrainingData.class_size(0)
+            posDataLength = scheduledTrainingData.class_size(1)
+            if negDataLength < 0.8*posDataLength:
+                io_utils.std_flush("Too few negative results. Adding more")
+                if self.AUGMENT.class_size(0) < posDataLength:
+                    # We'll need a random sampled for self.negatives BatchedLoad
+                    scheduledTrainingData.augment_by_class(self.AUGMENT.getObjectsByClass(0), 0)
                 else:
-                    # Just right
-                    io_utils.std_flush("No augmentation necessary")
-
-                # return combination of all classes
-                return scheduledTrainingData
+                    scheduledTrainingData.augment_by_class(random.sample(self.AUGMENT.getObjectsByClass(0), posDataLength-negDataLength), 0)
+            elif negDataLength > 1.2 *posDataLength:
+                # Too many negative data; we'll prune some
+                io_utils.std_flush("Too many  negative samples. Pruning")
+                scheduledTrainingData.prune_by_class(0,negDataLength-posDataLength)
+                # TODO
             else:
-                raise NotImplementedError()
-
+                # Just right
+                io_utils.std_flush("No augmentation necessary")
+            # return combination of all classes
+            return scheduledTrainingData
         else:
             raise NotImplementedError()
+
 
     # data is BatchedLocal
     def generatePipeline(self,data, pipeline):
@@ -890,8 +876,8 @@ class MLEPLearningServer():
 
     def classify(self, data):
         # Add to memories
-        for memory_type in self.MEMORY_TRACKER:
-            self.addToMemory(memory_type=memory_type, data=data)
+        for memory_type in self.MEMTRACK.getMemoryNames():
+            self.MEMTRACK.addToMemory(memory_name=memory_type, data=data)
 
         # First set up list of correct models
         ensembleModelNames = self.getValidModels()
@@ -1014,43 +1000,19 @@ class MLEPLearningServer():
     def setUpMemories(self,):
 
         io_utils.std_flush("\tStarted setting up memories at", time_utils.readable_time())
-        self.MEMORY_TRACKER = {}
-        self.MEMORY_MODE = {}
-        self.CLASSIFY_MODE = {}
+        import mlep.trackers.MemoryTracker as MemoryTracker
+        self.MEMTRACK = MemoryTracker.MemoryTracker()
 
         if self.MLEPConfig["allow_update_schedule"]:
-            self.memoryTrack(memory_type="scheduled", mode="default")
+            self.MEMTRACK.addNewMemory(memory_name="scheduled",memory_store="local", memory_path="./.MLEPServer/data/")
+            io_utils.std_flush("\t\tAdded scheduled memory")
+
         if self.MLEPConfig["allow_explicit_drift"]:
-            self.memoryTrack(memory_type="explicit_drift", mode="default")
+            self.MEMTRACK.addNewMemory(memory_name="explicit_drift",memory_store="local", memory_path="./.MLEPServer/data/")
+            io_utils.std_flush("\t\tAdded explicit drift memory")
+
         if self.MLEPConfig["allow_unlabeled_drift"]:
-            self.memoryTrack(memory_type="unlabeled_drift", mode="default")
-
-
-
+            self.MEMTRACK.addNewMemory(memory_name="unlabeled_drift",memory_store="local", memory_path="./.MLEPServer/data/")
+            io_utils.std_flush("\t\tAdded unlabeled drift memory")
+        
         io_utils.std_flush("\tFinished setting up memories at", time_utils.readable_time())
-
-    def memoryTrack(self,memory_type = "scheduled", mode="default"):
-        io_utils.std_flush("\tStarted setting up", memory_type, "memory at" , time_utils.readable_time())
-        if mode == "default":
-            # Set up default tracker for scheduledDataFile
-            from mlep.data_model.BatchedLocal import BatchedLocal
-            from mlep.data_set.PseudoJsonTweets import PseudoJsonTweets
-            data_source = memory_type + "_memory.json"
-            data_source_path = os.path.join('./.MLEPServer/data/', data_source)
-            self.MEMORY_TRACKER[memory_type] = BatchedLocal(data_source=data_source_path, data_mode="single", data_set_class=PseudoJsonTweets)
-            self.MEMORY_TRACKER[memory_type].open(mode="a")
-            self.MEMORY_MODE[memory_type] = mode
-            self.CLASSIFY_MODE[memory_type] = "binary"
-        else:
-            raise NotImplementedError()
-        io_utils.std_flush("\tFinished setting up", memory_type, "memory at" , time_utils.readable_time())
-
-    # data is a dataset object
-    def addToMemory(self,memory_type, data):
-        self.MEMORY_TRACKER[memory_type].write(data)
-    
-    def clearMemory(self,memory_type):
-        self.MEMORY_TRACKER[memory_type].clear()
-
-            
-
