@@ -1062,6 +1062,10 @@ class MLEPLearningServer():
                 # check if model is drifting
                 # if so use core-mem and gen-mem to update the model.
                 pass
+            # TODO for this, for now, just output size of data-mem. See if this changes significantly, and use heuristics ?????
+            # TODO Check if there is -- explicit drift -- OR -- enough data in data-mem to update
+            # If so, generate new models on data-mem and add them to the pile
+            # TODO TODO TODO Better way to check --> if more and more unlabeled samples are close to data-mem, then strengthen data-mem. 
         
         self.saveClassification(classification)
         self.saveEnsemble(ensembleModelNames)
