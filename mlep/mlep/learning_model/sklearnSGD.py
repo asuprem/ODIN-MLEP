@@ -1,7 +1,7 @@
-import mlep.learning_model.LearningModel
+import mlep.learning_model.BaseLearningModel
 
 
-class sklearnSGD(mlep.learning_model.LearningModel.LearningModel):
+class sklearnSGD(mlep.learning_model.BaseLearningModel.BaseLearningModel):
     """SVM learning model wrapper."""
 
     def __init__(self):

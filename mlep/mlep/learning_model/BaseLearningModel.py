@@ -2,7 +2,7 @@ __metaclass__ = type
 
 
 
-class LearningModel:
+class BaseLearningModel:
     """Abstract learning model."""
 
     def __init__(self, model, mode="binary",classes=[0,1]):
@@ -14,11 +14,20 @@ class LearningModel:
         self._model = model
         self.mode = mode
         self.classes = classes
+        self.track_drift = False
 
     def fit(self, X, y):
         """Fit the statistical learning model to the training data.
         X -- [array of shape (n_samples, n_features)] Training data.
         y -- [array of shape (n_samples)] Target values for the training data.
+        """
+        self._fit(X,y)
+        
+    def _fit(self,X,y):
+        """ Internal function to fit statistical model
+
+        This is the one that should be modified for derived classes
+
         """
         self._model.fit(X, y)
 
@@ -26,6 +35,14 @@ class LearningModel:
         """Update the statistical learning model to the training data.
         X -- [array of shape (n_samples, n_features)] Training data.
         y -- [array of shape (n_samples)] Target values for the training data.
+        """
+        self._update(X,y)
+
+    def _update(self,X,y):
+        """ Internal function to update the statistical model
+
+        This is the one that should be modified for derived classes
+
         """
         self._model.partial_fit(X, y, classes=self.classes)
 
@@ -39,6 +56,16 @@ class LearningModel:
         If X_test and y_test are not provided, split value is used (default 0.7) to shuffle and split X_train and y_train
         """
         # TODO handle weird erros, such as X_test specified, but y_test not specified, etc
+        precision, recall, score = self._update_and_test(X_train, y_train, split = split, X_test = X_test, y_test = y_test)
+
+        return precision, recall, score
+
+    def _update_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None):
+        """ Internal update_and_test method
+
+        This is the one that should be modified for derived classes
+
+        """
         if X_test is None and y_test is None:
             from sklearn.model_selection import train_test_split
             X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
@@ -57,6 +84,15 @@ class LearningModel:
         If X_test and y_test are not provided, split value is used (default 0.7) to shuffle and split X_train and y_train
         """
         # TODO handle weird erros, such as X_test specified, but y_test not specified, etc
+        precision, recall, score = self._fit_and_test(X_train, y_train, split = split, X_test = X_test, y_test = y_test)
+        return precision, recall, score
+
+    def _fit_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None):
+        """ Internal function to fit the statistical model.
+
+        This is the one that should be modified for derived classes
+
+        """
         if X_test is None and y_test is None:
             from sklearn.model_selection import train_test_split
             X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
@@ -65,15 +101,26 @@ class LearningModel:
         precision, recall, score = self.precision_recall_fscore(X_test, y_test)
         return precision, recall, score
 
-    def predict(self, X):
+    def predict(self, X_sample):
         """Return predicted labels for the test data.
         X -- [array of shape (n_samples, n_features)] Test data.
         """
         
+        prediction = self._predict(X_sample = X_sample)
+        return prediction
+
+
+    def _predict(self,X_sample):
+        """ Internal function to perform prediction.
+
+        This is the function that should be modified for derived classes
+        
+        """
         try:
-            return self._model.predict(X)
+            return self._model.predict(X_sample)
         except ValueError:
-            return self._model.predict(X.reshape(1,-1))
+            return self._model.predict(X_sample.reshape(1,-1))
+
 
     def precision_recall_fscore(self, X, y):
         """Return a 3-tuple where the first element is the precision of the model, the second is the
@@ -105,3 +152,24 @@ class LearningModel:
 
     def isUpdatable(self):
         return True
+
+    def trackDrift(self,_track=None):
+        """ 
+        Set/get whether drift is being tracked in a model
+
+        Args:
+            _track: Boolean. True/False for set. None/empty for get
+
+        Returns:
+            Bool -- content of self.track_drift
+        
+        """
+
+        if _track is not None:
+            self.track_drift = _track
+        return self.track_drift
+
+
+            
+    
+    
