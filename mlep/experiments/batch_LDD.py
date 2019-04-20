@@ -146,7 +146,7 @@ def runExperiment(runname, mlepConfig, experiment_name, expstatuslog, earlystop)
 
 
     internalTimer = 0
-    streamData = StreamLocal.StreamLocal(data_source="data/2014_to_dec2018.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
+    streamData = StreamLocal.StreamLocal(data_source="./data/2014_to_feb2019_offline.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
 
     augmentation = BatchedLocal.BatchedLocal(data_source='data/collectedIrrelevant.json', data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     augmentation.load_by_class()
