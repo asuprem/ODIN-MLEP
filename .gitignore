@@ -55,4 +55,5 @@ experiment/data/gooddata/
 
 notes
 
-mlep/experiments/logfiles/application.log
+mlep/experiments/logfiles/*
+experiments/data/*.json

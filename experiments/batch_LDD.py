@@ -1,6 +1,6 @@
 import os, time, json, sys, pdb, click
 
-import mlep.core.MLEPServer as MLEPServer
+import mlep.core.MLEPDriftAdaptor as MLEPDriftAdaptor
 
 import mlep.data_model.BatchedLocal as BatchedLocal
 import mlep.data_model.StreamLocal as StreamLocal
@@ -155,7 +155,7 @@ def runExperiment(runname, mlepConfig, experiment_name, expstatuslog, earlystop)
     trainingData.load()
 
     # Now we have the data
-    MLEPLearner = MLEPServer.MLEPLearningServer(config_dict=mlepConfig, safe_mode=False)
+    MLEPLearner = MLEPDriftAdaptor.MLEPDriftAdaptor(config_dict=mlepConfig, safe_mode=False)
 
     # Perform initial traininig
     MLEPLearner.initialTrain(traindata=trainingData)

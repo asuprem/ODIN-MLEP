@@ -2,7 +2,7 @@ import os, time, json, sys, pdb, click
 
 # import mlflow
 
-import mlep.core.MLEPServer as MLEPServer
+import mlep.core.MLEPDriftAdaptor as MLEPDriftAdaptor
 
 import mlep.data_model.BatchedLocal as BatchedLocal
 import mlep.data_model.StreamLocal as StreamLocal
@@ -63,14 +63,6 @@ def main(experimentname,
             pass
     
 
-    # Log relevant details
-    """
-    for _key in mlepConfig["config"]:
-        # possible error
-        if _key != "drift_metrics":
-            mlflow.log_param(_key, mlepConfig["config"][_key])
-    """
-
     internalTimer = 0
     streamData = StreamLocal.StreamLocal(data_source="data/2014_to_dec2018.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
 
@@ -82,7 +74,7 @@ def main(experimentname,
     
 
     # Now we have the data
-    MLEPLearner = MLEPServer.MLEPLearningServer(config_dict=mlepConfig, safe_mode=False)
+    MLEPLearner = MLEPDriftAdaptor.MLEPDriftAdaptor(config_dict=mlepConfig, safe_mode=False)
 
     # Perform initial traininig
     MLEPLearner.initialTrain(traindata=trainingData)
