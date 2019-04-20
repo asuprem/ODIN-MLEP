@@ -796,8 +796,12 @@ class MLEPLearningServer():
             mappedWeights = sorted(mappedWeights, key=lambda tup:tup[0], reverse=True) # pylint: disable=no-member
             # Now we have models sorted by performance. Truncate
             mappedWeights = mappedWeights[:self.MLEPConfig["kval"]]    # pylint: disable=unsubscriptable-object
-            ensembleModelNames = [item[1] for item in mappedWeights]
-        return ensembleModelNames
+            ensembleModelPerformance = [None]*self.MLEPConfig["kval"]
+            ensembleModelNames = [None]*self.MLEPConfig["kval"]
+            for idx,_item in mappedWeights:
+                ensembleModelNames[idx] = _item[1]
+                ensembleModelPerformance[idx] = _item[0]
+        return ensembleModelNames, ensembleModelPerformance
 
     def getTopKNearestModels(self,ensembleModelNames, data):
         #data is a DataSet object
@@ -881,21 +885,28 @@ class MLEPLearningServer():
             # item[1] --> fscore
             # item[2] --> modelName
             kClosest = kClosest[:k_val]
-            ensembleModelNames = [item[2] for item in kClosest]
-        return ensembleModelNames
+            ensembleModelNames = [None]*k_val
+            ensembleModelDistance = [None]*k_val
+            ensembleModelPerformance = [None]*k_val
+            for idx,_item in enumerate(kClosest):
+                ensembleModelNames[idx] = _item[2]
+                ensembleModelPerformance[idx] = _item[1]
+                ensembleModelDistance[idx] = _item[0]
+        return ensembleModelNames, ensembleModelPerformance, ensembleModelDistance
 
     def classify(self, data):          
 
         # First set up list of correct models
         ensembleModelNames = self.getValidModels()
         # Now that we have collection of candidaate models, we use filter_select to decide how to choose the right model
-
+        ensembleModelPerformance = None
+        ensembleModelDistance = None
         if self.MLEPConfig["filter_select"] == "top-k":
             # sort on top-k best performers
-            ensembleModelNames = self.getTopKPerformanceModels(ensembleModelNames)
+            ensembleModelNames, ensembleModelPerformance = self.getTopKPerformanceModels(ensembleModelNames)
         elif self.MLEPConfig["filter_select"] == "nearest":
             # do knn
-            ensembleModelNames = self.getTopKNearestModels(ensembleModelNames, data)
+            ensembleModelNames, ensembleModelPerformance, ensembleModelDistance = self.getTopKNearestModels(ensembleModelNames, data)
         elif self.MLEPConfig["filter_select"] == "no-filter":
             # Use all models in ensembleModelNames as ensemble
             pass
@@ -909,8 +920,11 @@ class MLEPLearningServer():
         # Run the sqlite query to get model details
         modelDetails = self.getModelDetails(ensembleModelNames)
         if self.MLEPConfig["weight_method"] == "performance":
-            # request DB for performance (f-score)
-            weights = self.getDetails(modelDetails, 'fscore', 'list', order=ensembleModelNames)
+            if ensembleModelPerformance is not None:
+                weights = ensembleModelPerformance
+            else:
+                # request DB for performance (f-score)
+                weights = self.getDetails(modelDetails, 'fscore', 'list', order=ensembleModelNames)
             sumWeights = sum(weights)
             weights = [item/sumWeights for item in weights]
         elif self.MLEPConfig["weight_method"] == "unweighted":
@@ -953,7 +967,21 @@ class MLEPLearningServer():
             # Then get the encodername from sequence[0]
             # Then get the locally encoded thingamajig of the data
             # And pass it into predict()
+
+            # for regular mode
             cls_=self.MODELS[_name].predict(localEncoder[self.MLEPPipelines[pipelineNameDict[_name]]["sequence"][0]])
+
+            # TODO for model-drift mode, we first check if the data point is ground-truth stream or a prediction stream
+            #  -- if getLabel() on data returns None, it is a prediction stream
+            # -- if getLabel() on data returns a value, it is a ground-truth stream
+
+            # TODO getLabel() returns value
+            # if explicit_drift_mode is allowed
+            # cls = self.MODELS[_name].predict("explicit", y_label = label) -- > this will perform drift detection internally
+
+            # TODO getLabel() returns None
+            # if implicit drift mode is allowed
+            # cls = self.MODELS[_name].predict("implicit") --> also perform drift detection internally
             ensembleWeighted[idx] = float(weights[idx]*cls_)
             ensembleRaw[idx] = float(cls_)
 
@@ -1022,6 +1050,18 @@ class MLEPLearningServer():
                     self.MLEPUpdate(memory_type="unlabeled_errors")
                 else:
                     raise NotImplementedError()
+
+        if self.MLEPConfig["allow_model_drift"]:
+            raise NotImplementedError()
+            # TODO
+            for idx,_name in enumerate(ensembleModelNames):
+                # add data to proper memory (core-mem, gen-mem)
+                # add data, if it doesn't fit either, to data-mem (from MEMORY_TRACK)
+                pass
+
+                # check if model is drifting
+                # if so use core-mem and gen-mem to update the model.
+                pass
         
         self.saveClassification(classification)
         self.saveEnsemble(ensembleModelNames)
