@@ -11,6 +11,8 @@
         "schedule_update_mode":"all",
 
         "allow_model_drift":false,
+        "allow_model_explicit_drift": false,
+        "allow_model_implicit_drift": false,
 
         "allow_unlabeled_drift": true,
         "unlabeled_drift_class":"UnlabeledDriftDetector",
