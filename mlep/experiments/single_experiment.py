@@ -25,7 +25,7 @@ warnings.filterwarnings(action='ignore', category=FutureWarning)
 @click.option('--allow_explicit_drift', default=True, type=bool)
 @click.option('--explicit_drift_class', default="LabeledDriftDetector", type=click.Choice(["LabeledDriftDetector"]))
 @click.option('--explicit_drift_mode', default="DDM", type=click.Choice(["DDM", "EDDM", "PageHinkley", "ADWIN"]))
-@click.option('--explicit_update_mode', default="all", type=click.Choice(["all", "errors", "weighted"]))
+@click.option('--explicit_update_mode', default="errors", type=click.Choice(["all", "errors", "weighted"]))
 
 @click.option('--allow_unlabeled_drift', default=False, type=bool)
 @click.option('--unlabeled_drift_class', default="UnlabeledDriftDetector", type=click.Choice(["UnlabeledDriftDetector"]))

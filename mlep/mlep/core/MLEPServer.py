@@ -356,6 +356,10 @@ class MLEPLearningServer():
             self.scheduledFilterGenerateUpdateTimer = self.overallTimer
     
     def MLEPUpdate(self,memory_type="scheduled"):
+        if self.MEMTRACK.memorySize(memory_name=memory_type) < self.MLEPConfig["min_train_size"]:
+            io_utils.std_flush("Attemped update using", memory_type, "-memory with", self.MEMTRACK.memorySize(memory_name=memory_type),"data samples. Failed due to requirement of", self.MLEPConfig["min_train_size"], "samples." )    
+            return
+            # TODO update the learning model itself to reject update with too few? Or let user handle this issue?
         io_utils.std_flush("Update using", memory_type, "-memory at", time_utils.ms_to_readable(self.overallTimer), "with", self.MEMTRACK.memorySize(memory_name=memory_type),"data samples." )
         # Get the training data from Memory
         TrainingData = self.getTrainingData(memory_type=memory_type)

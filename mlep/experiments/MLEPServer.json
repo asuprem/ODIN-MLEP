@@ -24,7 +24,8 @@
         "kval": 5,
         "update_prune":"C",
         "models_to_update":"recent",
-
+        
+        "min_train_size":50,
         "drift_metrics":{
             "DDM":"error",
             "EDDM":"error",

@@ -37,7 +37,6 @@ class DDM(LabeledDriftDetector.LabeledDriftDetector):
         self.i = None
         self.pi = None
         self.si = None
-        self.pi_sd_min = None
         self.pi_min = None
         self.si_min = None
         self.sqrt=sqrt
@@ -56,7 +55,6 @@ class DDM(LabeledDriftDetector.LabeledDriftDetector):
         self.i = 0
         self.pi = 1.0
         self.si = 0.0
-        #self.pi_sd_min = float("inf")
         self.pi_min = float("inf")
         self.si_min = float("inf")
 
@@ -85,7 +83,6 @@ class DDM(LabeledDriftDetector.LabeledDriftDetector):
         if self.pi + self.si <= self.pi_min + self.si_min:
             self.pi_min = self.pi
             self.si_min = self.si
-            #self.pi_sd_min = self.pi+self.si
 
         if self.pi + self.si > self.pi_min  + self.drift_level * self.si_min:
             return True
