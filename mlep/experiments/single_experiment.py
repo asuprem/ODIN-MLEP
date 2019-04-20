@@ -22,7 +22,7 @@ warnings.filterwarnings(action='ignore', category=FutureWarning)
 @click.command()
 @click.argument('experimentname')
 
-@click.option('--allow_explicit_drift', default=False, type=bool)
+@click.option('--allow_explicit_drift', default=True, type=bool)
 @click.option('--explicit_drift_class', default="LabeledDriftDetector", type=click.Choice(["LabeledDriftDetector"]))
 @click.option('--explicit_drift_mode', default="DDM", type=click.Choice(["DDM", "EDDM", "PageHinkley", "ADWIN"]))
 @click.option('--explicit_update_mode', default="all", type=click.Choice(["all", "errors", "weighted"]))

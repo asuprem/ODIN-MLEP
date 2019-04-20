@@ -981,7 +981,6 @@ class MLEPLearningServer():
             if error:
                 self.MEMTRACK.addToMemory(memory_name="explicit_errors", data=data)
 
-
             driftDetected = self.EXPLICIT_DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["drift_metrics"][self.MLEPConfig["explicit_drift_mode"]]])
             if driftDetected:
                 io_utils.std_flush(self.MLEPConfig["explicit_drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
