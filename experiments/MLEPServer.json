@@ -14,7 +14,7 @@
         "allow_model_explicit_drift": false,
         "allow_model_implicit_drift": false,
 
-        "allow_unlabeled_drift": true,
+        "allow_unlabeled_drift": false,
         "unlabeled_drift_class":"UnlabeledDriftDetector",
         "unlabeled_drift_mode":"EnsembleDisagreement",
         "unlabeled_update_mode":"all",
@@ -168,7 +168,7 @@
             "sequence": ["w2v-generic-20000", "sgd"],
             "type":"binary",
             "encoder": "w2v-generic-20000",
-            "valid":false
+            "valid":true
         }, 
 
         "pipelineF":{
@@ -196,7 +196,7 @@
             "sequence": ["bowDefault", "decisiontree"],
             "type":"binary",
             "encoder": "bowDefault",
-            "valid":true
+            "valid":false
         },
 
         "bowlogreg":{
@@ -204,7 +204,7 @@
             "sequence": ["bowDefault", "logreg"],
             "type":"binary",
             "encoder": "bowDefault",
-            "valid":true
+            "valid":false
         },
 
         "bowrandforest":{
@@ -212,7 +212,7 @@
             "sequence": ["bowDefault", "randforest"],
             "type":"binary",
             "encoder": "bowDefault",
-            "valid":true
+            "valid":false
         },
 
         "bowsgd":{
@@ -220,12 +220,7 @@
             "sequence": ["bowDefault", "sgd"],
             "type":"binary",
             "encoder": "bowDefault",
-            "valid":true
-        }    
-
-        
-
-        
+            "valid":false
+        }            
     }
-        
 }
