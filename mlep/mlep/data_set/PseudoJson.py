@@ -8,7 +8,10 @@ class PseudoJson(mlep.data_set.DataSet.DataSet):
         self.dumps = dumps
         self.raw = loads(data)
         self.data = self.raw[dataKey]
-        self.label = self.raw[labelKey]
+        if labelKey in self.raw:
+            self.label = self.raw[labelKey]
+        else:
+            self.label = None
 
     def getData(self,):
         return self.data
