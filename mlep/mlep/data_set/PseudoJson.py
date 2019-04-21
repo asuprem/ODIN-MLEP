@@ -17,7 +17,7 @@ class PseudoJson(mlep.data_set.DataSet.DataSet):
         return self.data
 
     def getLabel(self,):
-            return self.label
+        return self.label
 
     def getValue(self,key):
         return self.raw[key]
