@@ -18,15 +18,13 @@ class StreamLocal(mlep.data_model.DataModel.DataModel):
 
         # Init function loads data
         self._object = None
-        self._data = None
-        self._label = None
 
         self.data_source = data_source
         if data_mode == "single":
             self.reader = open(self.data_source, "r")
         else:
             raise NotImplementedError()            
-        self.idx=0
+        self._idx=0
         self.data_set_class = data_set_class
 
 
@@ -40,7 +38,7 @@ class StreamLocal(mlep.data_model.DataModel.DataModel):
             IOError
 
         """
-        if not self.idx:
+        if not self._idx:
             raise IOError("Trying to access stream without reading from it. Run next() before accessing data.")
         return self._object.getData()
 
@@ -56,9 +54,9 @@ class StreamLocal(mlep.data_model.DataModel.DataModel):
             IOError
 
         """
-        if not self.idx:
+        if not self._idx:
             raise IOError("Trying to access stream without reading from it. Run next() before accessing data.")
-        return self._label.getLabel()
+        return self._object.getLabel()
 
     def getObject(self,):
         """ Gets the data object itself.
@@ -70,7 +68,7 @@ class StreamLocal(mlep.data_model.DataModel.DataModel):
             IOError
 
         """
-        if not self.idx:
+        if not self._idx:
             raise IOError("Trying to access stream without reading from it. Run next() before accessing data.")
         return self._object
         
@@ -92,13 +90,21 @@ class StreamLocal(mlep.data_model.DataModel.DataModel):
         self._object = self.data_set_class(line)
 
         if self._object.getData() is None:
-            raise ValueError("Data is NoneType at line %i in %s"%(self.idx+1,self.data_source))
+            raise ValueError("Data is NoneType at line %i in %s"%(self._idx+1,self.data_source))
 
-        self.idx+=1
+        self._idx+=1
 
         return True
         
-    
+    def streamLength(self):
+        """ Returns number of items read
+
+        Returns:
+            self._idx
+
+        """
+        return self._idx
+
     def getNextBatchData(self,):
         raise NotImplementedError()
 
