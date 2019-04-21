@@ -3,61 +3,101 @@ import mlep.data_model.DataModel
 class StreamLocal(mlep.data_model.DataModel.DataModel):
     """ StreamLocal model. Simulates streaming data"""
     
-    def __init__(self, data_source=None, data_mode=None, num_samples="all", data_set_class=None):
+    def __init__(self, data_source=None, data_mode=None, data_set_class=None):
         """
-
-        data_source -- path of the Local Batched Data File
-
-        num_samples -- how many samples to load at a time...
-                -- also not implemented. For now we load all examples in memory
-                -- TODO add option for lazy loading vs preloading
+        Initializes a StreamLocal reader. 
         
-        data_mode -- [collected/sequential]
-            - "single" -- all samples are in a single file - the one linked in data_source
-            - "sequential" - samples are spread out across multiple files. Probably will use some form of wildcarding for this. TBD.
+        StreamLocal  reads a file locally as a stream, delivering data one piece at a time.
 
-            We only handle collected so far. Batched also means all data is loaded into memory
+        Args:
+            data_source: Source of the data to read.
+            data_mode: "single" or "split". "split" is not implemented. "single" means there is a single file with all classes present together.
+            data_set_class: A dataset class for each line read from the file or each file read (if not 'single' mode). The dataset class must initialize with only the data item. It must implement the getData() and the getLabel() functions. getData() must not return None.
 
-        data_set_class -- Class file (from DataSet) that encapsulates each example.
-
-        examples are delimited by newlines
         """
 
         # Init function loads data
-        # load into a dataframe---?
-        self.data=[]
+        self._object = None
+        self._data = None
+        self._label = None
+
+        self.data_source = data_source
         if data_mode == "single":
-            with open(data_source,"r") as data_source_file:
-                for line in data_source_file:
-                    self.data.append(data_set_class(line))
+            self.reader = open(self.data_source, "r")
+        else:
+            raise NotImplementedError()            
         self.idx=0
+        self.data_set_class = data_set_class
 
-        # so self.data is a list of [data_set_class(), data_set_class()...]  
 
-    """ TODO make this an iterator format. Also learn aboout iteratoro formars :/"""
     def getData(self,):
-        return self.data_
+        """ Gets the data item 
+
+        Returns:
+            mlep.data_set derived class wrapper's getData() method (self.data_set_class)
+
+        Raises:
+            IOError
+
+        """
+        if not self.idx:
+            raise IOError("Trying to access stream without reading from it. Run next() before accessing data.")
+        return self._object.getData()
 
     def getLabel(self,):
-        return self.label_
+        """ Gets the data label.
+
+        The label can be None if the data item in the stream is an unlabeled one. 
+
+        Returns:
+            mlep.data_set derived class wrapper's getLabel() method  (self.data_set_class)
+
+        Raises:
+            IOError
+
+        """
+        if not self.idx:
+            raise IOError("Trying to access stream without reading from it. Run next() before accessing data.")
+        return self._label.getLabel()
 
     def getObject(self,):
-        return self.object_
+        """ Gets the data object itself.
+
+        Returns:
+            mlep.data_set derived class wrapper around the data sample  (self.data_set_class)
+
+        Raises:
+            IOError
+
+        """
+        if not self.idx:
+            raise IOError("Trying to access stream without reading from it. Run next() before accessing data.")
+        return self._object
         
     def next(self,):
-        try:
-            self.object_ = self.data[self.idx]
-        except IndexError:
-            return False
+        """ Iterates to the next item.
 
-        self.data_ = self.object_.getData()
-        self.label_ = self.object_.getLabel()
+        This is just a basic filestream. Future work to include loading data split across multiple files (using, perhaps, some distributed load paradigm?)
+
+        Raises:
+            ValueError
+
+        """
+        line = self.reader.readline()
+        if line == "":
+            # End of file
+            self.reader.close()
+            return False
+        
+        self._object = self.data_set_class(line)
+
+        if self._object.getData() is None:
+            raise ValueError("Data is NoneType at line %i in %s"%(self.idx+1,self.data_source))
+
         self.idx+=1
+
         return True
         
-        
-
-    
     
     def getNextBatchData(self,):
         raise NotImplementedError()
