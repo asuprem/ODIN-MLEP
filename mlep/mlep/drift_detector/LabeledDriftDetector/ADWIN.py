@@ -18,6 +18,7 @@ class ADWIN(LabeledDriftDetector.LabeledDriftDetector):
         detect: Perform drift detection
 
     """
+    #def __init__(self, delta=0.002, max_buckets=5, min_clock=32, min_win_len=10, min_sub_win_len=5):
     def __init__(self, delta=0.002, max_buckets=5, min_clock=32, min_win_len=10, min_sub_win_len=5):
         """
         Initialize the ADWIN Drift Detector
