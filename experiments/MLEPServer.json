@@ -140,7 +140,7 @@
             "sequence": ["w2v-main", "sgd"],
             "type":"binary",
             "encoder": "w2v-main",
-            "valid":false
+            "valid":true
         },
 
         "pipelineB":{
@@ -188,7 +188,7 @@
             "sequence": ["w2v-generic-5000", "sgd"],
             "type":"binary",
             "encoder": "w2v-generic-5000",
-            "valid":true
+            "valid":false
         }, 
 
 
