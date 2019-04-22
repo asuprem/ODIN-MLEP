@@ -3,7 +3,21 @@ __metaclass__ = type
 
 
 class BaseLearningModel:
-    """Abstract learning model."""
+    """
+    Abstract learning model.
+    
+    Attributes:
+        _model -- Private. The actual model. For now, just sklearn. Plans to incorporate keras, tensorflow, rnns, others.
+        mode -- "binary", "multiclass", "regression". Only "binary" is supported.
+        classes -- The classes in data. Nominally in [0,NUM_CLASSES-1]
+        track_drift -- BOOL. Whether this model tracks its own drift
+        _confidence -- FLOAT. Model's confidence on the previous sample.
+        _trust -- Model's trust on previous sample.
+        _drifting -- BOOL. Whether model is currently drifting.
+
+        _driftTracker -- Internal Drift Tracker. May use one of mlep's drift tracker methods.
+
+    """
 
     def __init__(self, model, mode="binary",classes=[0,1]):
         """Initialize a learning model.
@@ -15,6 +29,10 @@ class BaseLearningModel:
         self.mode = mode
         self.classes = classes
         self.track_drift = False
+        self._confidence = 1.0
+        self._trust = 1.0
+        self._drifting = False
+        self._driftTracker = None
 
     def fit(self, X, y):
         """Fit the statistical learning model to the training data.
@@ -132,15 +150,25 @@ class BaseLearningModel:
                     "implicit" -- for implicit drift tracking. This is for unlabeled examples
                     "explicit" -- for explicit drift tracking. This is for labeled examples
                     "test" -- internal-use. No drift tracking is performed. Used during testing/evaluating model post training or update.
+        
+        Raises:
+            ValueError
         """
         
-        
+        # Reshaping
+        if len(X_sample.shape) == 1:
+            X_sample = X_sample.reshape(1,-1)
+
         if mode == "predict" or mode == "test":
             prediction = self._predict(X_sample = X_sample)
-        elif mode == "implicit":
-            prediction = self._evaluate_implicit_drift(X_sample)
-        elif mode == "explicit":
-            prediction = self._evaluate_explicit_drift(X_sample, y_label)
+        elif mode == "implicit_confidence":
+            if not self.track_drift or self.track_drift is None:
+                raise ValueError("Cannot detect implicit drift if drift tracking is not enabled. Enable drift tracking with trackDrift().")
+            prediction = self._evaluate_implicit_confidence(X_sample)
+        elif mode == "explicit_confidence":
+            if not self.track_drift or self.track_drift is None:
+                raise ValueError("Cannot detect implicit drift if drift tracking is not enabled. Enable drift tracking with trackDrift().")
+            prediction = self._evaluate_explicit_confidence(X_sample, y_label)
         else:
             raise NotImplementedError()
         return prediction
@@ -152,17 +180,14 @@ class BaseLearningModel:
         This is the function that should be modified for derived classes
         
         """
-        try:
-            return self._model.predict(X_sample)
-        except ValueError:
-            return self._model.predict(X_sample.reshape(1,-1))
+        return self._model.predict(X_sample)
 
-    def _evaluate_implicit_drift(self,X_sample):
+    def _evaluate_implicit_confidence(self,X_sample):
         """ This evaluates a model's implicit drift """
         
         raise NotImplementedError()
 
-    def _evaluate_explicit_drift(self,X_sample, y_label):
+    def _evaluate_explicit_confidence(self,X_sample, y_label):
         """ This evaluates a model's explicit drift using y_label """
         
         raise NotImplementedError()
@@ -199,7 +224,29 @@ class BaseLearningModel:
 
         if _track is not None:
             self.track_drift = _track
+            self._setupDriftTracker()
         return self.track_drift
+
+    def isDrifting(self):
+        """ 
+        Get whether drift is occuring
+
+        Returns:
+            Bool -- Whether drift is occuring
+        
+        """
+        return self._drifting
+
+    def _setupDriftTracker(self,):
+        """ 
+        Sets up a drift tracker (e.g. DDM, EDDM, etc)
+
+        Raisees:
+            NotImplementedError
+        
+        """
+        raise NotImplementedError()
+
 
             
     
