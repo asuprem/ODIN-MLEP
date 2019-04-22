@@ -19,8 +19,8 @@ def main():
     mlepConfig = io_utils.load_json("./MLEPServer.json")
 
     # update as per experiment requires
-    mlepConfig["config"]["allow_model_confidence"] = True
-    mlepConfig["config"]["allow_model_implicit_confidence"] = True
+    mlepConfig["config"]["allow_explicit_drift"] = True
+    mlepConfig["config"]["explicit_drift_mode"] = "ADWIN"
 
     mlepConfig["config"]["weight_method"] = "performance"
     mlepConfig["config"]["select_method"] = "recent"
@@ -60,7 +60,7 @@ def main():
             explicit_count += 1
         totalCounter += 1
 
-        """
+        
         if totalCounter % 100 == 0 and totalCounter>0.0:
             implicit_running_error = 2.00
             explicit_running_error = 2.00
@@ -74,7 +74,7 @@ def main():
             implicit_count = 0
             explicit_mistakes = 0.0
             explicit_count = 0
-        """
+        
         
 
     
