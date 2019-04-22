@@ -94,7 +94,8 @@ class MLEPDriftAdaptor():
             
             if self.MLEPConfig["unlabeled_drift_class"] not in self.KNOWN_UNLABELED_DRIFT_CLASSES:
                 raise ValueError("Unlabeled drift class '%s' in configuration is not part of any known Unlabeled Drift Classes: %s"%(self.MLEPConfig["unlabeled_drift_class"], str(self.KNOWN_UNLABELED_DRIFT_CLASSES)))
-
+            if self.MLEPConfig["unlabeled_drift_mode"] != "EnsembleDisagreement":
+                raise NotImplementedError()
             driftTracker = self.MLEPConfig["unlabeled_drift_mode"]
             driftModule = self.MLEPConfig["unlabeled_drift_class"]
             driftArgs = self.MLEPConfig["drift_args"] if "drift_args" in self.MLEPConfig else {}
@@ -1065,19 +1066,26 @@ class MLEPDriftAdaptor():
                 if error:
                     self.MEMTRACK.addToMemory(memory_name="unlabeled_errors", data=data)
             if classify_mode == "implicit":
-                driftDetected = self.UNLABELED_DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["drift_metrics"][self.MLEPConfig["unlabeled_drift_mode"]]])
-                if driftDetected:
-                    io_utils.std_flush(self.MLEPConfig["unlabeled_drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
-                    self.UNLABELED_DRIFT_TRACKER.reset()
-                    
-                    # perform drift update (big whoo)
-                    # perform update with the correct memory type
-                    if self.MLEPConfig["unlabeled_update_mode"] == "all":
-                        self.MLEPUpdate(memory_type="unlabeled_drift")
-                    elif self.MLEPConfig["unlabeled_update_mode"] == "errors":
-                        self.MLEPUpdate(memory_type="unlabeled_errors")
-                    else:
-                        raise NotImplementedError()
+                if self.MLEPConfig["unlabeled_drift_mode"] == "EnsembleDisagreement":
+
+                    driftDetected = self.UNLABELED_DRIFT_TRACKER.detect(self.METRICS[self.MLEPConfig["drift_metrics"][self.MLEPConfig["unlabeled_drift_mode"]]])
+                    if driftDetected:
+                        io_utils.std_flush(self.MLEPConfig["unlabeled_drift_mode"], "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
+                        self.UNLABELED_DRIFT_TRACKER.reset()
+                        
+                        # perform drift update (big whoo)
+                        # perform update with the correct memory type
+                        # TODO uncomment this -- for now we are just checking if drift is being detected....
+                        """
+                        if self.MLEPConfig["unlabeled_update_mode"] == "all":
+                            self.MLEPUpdate(memory_type="unlabeled_drift")
+                        elif self.MLEPConfig["unlabeled_update_mode"] == "errors":
+                            self.MLEPUpdate(memory_type="unlabeled_errors")
+                        else:
+                            raise NotImplementedError()
+                        """
+                else:
+                    raise NotImplementedError()
 
         if self.MLEPConfig["allow_model_confidence"]:
             # TODO
