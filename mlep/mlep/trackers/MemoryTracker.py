@@ -29,7 +29,7 @@ class MemoryTracker:
 
         Args:
             memory_name -- Name of the memory
-            memory_store -- "local": memory will be saved to disk. "in-memory" -- memory will be in-memory. Not Implemented
+            memory_store -- "local": memory will be saved to disk. "memory" -- memory will be in-memory. Not Implemented
             memory_path -- folder where memory will be stored and loaded from is memory_store is "local"
 
         Raises:
@@ -50,6 +50,14 @@ class MemoryTracker:
                 self.MEMORY_TRACKER[memory_name] = BatchedLocal(data_source=data_source_path, data_mode="single", data_set_class=PseudoJsonTweets)
                 self.MEMORY_TRACKER[memory_name].open(mode="a")
                 self.MEMORY_STORE[memory_name] = memory_store
+            elif memory_store == "memory":
+                from mlep.data_model.BatchedLocal import BatchedLocal
+                from mlep.data_set.PseudoJsonTweets import PseudoJsonTweets
+                data_source = []
+                #data_source_path = os.path.join(memory_path, data_source)
+                self.MEMORY_TRACKER[memory_name] = BatchedLocal(data_source=data_source, data_mode="single", data_set_class=PseudoJsonTweets, data_location="memory")
+                self.MEMORY_STORE[memory_name] = memory_store
+
             else:
                 raise NotImplementedError()
         else:
@@ -155,6 +163,13 @@ class MemoryTracker:
         if self.MEMORY_MODE == "default":
             if self.MEMORY_STORE[memory_name] == "local":
                 self.MEMORY_TRACKER[memory_name].close()
+                loadModule = self.MEMORY_TRACKER[memory_name].__class__.__module__
+                loadClass  = self.MEMORY_TRACKER[memory_name].__class__.__name__
+                dataModelModule = __import__(loadModule, fromlist=[loadClass])
+                dataModelClass = getattr(dataModelModule, loadClass)
+                # Get SCHEDULED_DATA_FILE from MEMORY_TRACK
+                return dataModelClass(**self.MEMORY_TRACKER[memory_name].__getargs__())
+            elif self.MEMORY_STORE[memory_name] == "memory":
                 loadModule = self.MEMORY_TRACKER[memory_name].__class__.__module__
                 loadClass  = self.MEMORY_TRACKER[memory_name].__class__.__name__
                 dataModelModule = __import__(loadModule, fromlist=[loadClass])

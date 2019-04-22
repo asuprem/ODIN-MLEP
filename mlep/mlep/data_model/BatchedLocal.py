@@ -3,7 +3,7 @@ import mlep.data_model.DataModel
 class BatchedLocal(mlep.data_model.DataModel.DataModel):
     """ BatchedLocal model loads the batchedlocal file"""
     
-    def __init__(self, data_source=None, data_mode=None, num_samples="all", data_set_class=None, classification_mode="binary", classes=[0,1]):
+    def __init__(self, data_source=None, data_mode=None, num_samples="all", data_set_class=None, classification_mode="binary", classes=[0,1], data_location="local"):
         """
 
         data_source -- path of the Local Batched Data File
@@ -24,20 +24,39 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
 
         examples are delimited by newlines
         """
-        self.data=[]
-        self.class_data={}
-        self.class_statistics={}
-        self.classes=classes
-        self.num_samples = num_samples
-        self.classification_mode = classification_mode
-        for _class in classes:
-            self.class_data[_class] = []
-            self.class_statistics[_class] = 0
-        
+        if data_location == "local":
+            self.data=[]
+            self.class_data={}
+            self.class_statistics={}
+            self.classes=classes
+            self.num_samples = num_samples
+            self.classification_mode = classification_mode
+            for _class in classes:
+                self.class_data[_class] = []
+                self.class_statistics[_class] = 0
+            
+            self.data_mode = data_mode
+            self.data_source = data_source
+            self.data_set_class = data_set_class
+            self.data_location = data_location
+        elif data_location == "memory":
+            self.data=data_source
+            self.class_data={}
+            self.class_statistics={}
+            self.classes=classes
+            self.num_samples = num_samples
+            self.classification_mode = classification_mode
+            for _class in classes:
+                self.class_data[_class] = []
+                self.class_statistics[_class] = 0
+            
 
-        self.data_mode = data_mode
-        self.data_source = data_source
-        self.data_set_class = data_set_class
+            self.data_mode = data_mode
+            self.data_source = None
+            self.data_set_class = data_set_class
+            self.data_location = data_location
+        else:
+            raise NotImplementedError()
 
         # This is whether, in write mode, we are adding to existing file or clearing and starting over from scratch. Lazy deletion.
         self._clear = True
@@ -85,25 +104,38 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
     # data is a DataSet object
     def write(self,data):
         # mode --> "w" or "a"
-        if self.writer is None:
-            raise IOError("No writer set.")
-        if self.data_mode == "single":
-            self.writer.write(data.serialize()+'\n')
+        if self.data_location == "local":
+            if self.writer is None:
+                raise IOError("No writer set.")
+            if self.data_mode == "single":
+                self.writer.write(data.serialize()+'\n')
+                self.load_memory+=1
+            else:
+                raise NotImplementedError()
+            # For other data_mode, have to keep track of file names for writing.
+        elif self.data_location == "memory":
+            self.data.append(data)
             self.load_memory+=1
         else:
             raise NotImplementedError()
-        # For other data_mode, have to keep track of file names for writing.
 
     def clear(self,):
         """ this is to clear the BatchedLocal file. Dangerous for loading data batchedFile object, cause it will, well, delete the load data """
         """ maybe separate BatchedLocalLoader and BatchedLocalWriters..."""
-        self._clear = True
-        self.close()
-        import os
-        if os.path.exists(self.data_source):
-            os.remove(self.data_source)
-        self.load_memory = 0
-        self.open("a")
+        if self.data_location == "local":
+            self._clear = True
+            self.close()
+            import os
+            if os.path.exists(self.data_source):
+                os.remove(self.data_source)
+            self.load_memory = 0
+            self.open("a")
+        elif self.data_location == "memory":
+            self._clear = True
+            self.data = []
+            self.load_memory = 0
+        else:
+            raise NotImplementedError()
     
     def hasSamples(self,):
         return bool(self.load_memory)
@@ -163,14 +195,28 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
 
     """ This returns a dictionary of arguments """
     def __getargs__(self,):
-        return {
-            "data_source":self.data_source,
-            "data_mode":self.data_mode,
-            "num_samples":self.num_samples,
-            "data_set_class":self.data_set_class,
-            "classification_mode":self.classification_mode,
-            "classes":self.classes,
-        }
+        if self.data_location == "local":
+            return {
+                "data_source":self.data_source,
+                "data_mode":self.data_mode,
+                "num_samples":self.num_samples,
+                "data_set_class":self.data_set_class,
+                "classification_mode":self.classification_mode,
+                "classes":self.classes,
+                "data_location":self.data_location
+            }
+        elif self.data_location == "memory":
+            return {
+                "data_source":self.data,
+                "data_mode":self.data_mode,
+                "num_samples":self.num_samples,
+                "data_set_class":self.data_set_class,
+                "classification_mode":self.classification_mode,
+                "classes":self.classes,
+                "data_location":self.data_location
+            }
+        else:
+            raise NotImplementedError()
 
 
 
