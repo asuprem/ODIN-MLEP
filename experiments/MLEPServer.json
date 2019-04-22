@@ -14,10 +14,6 @@
         "allow_model_explicit_drift": false,
         "allow_model_implicit_drift": false,
 
-        "allow_model_confidence":false,
-        "allow_model_explicit_confidence": false,
-        "allow_model_implicit_confidence": false,
-
         "allow_unlabeled_drift": false,
         "unlabeled_drift_class":"UnlabeledDriftDetector",
         "unlabeled_drift_mode":"EnsembleDisagreement",
@@ -172,7 +168,7 @@
             "sequence": ["w2v-generic-20000", "sgd"],
             "type":"binary",
             "encoder": "w2v-generic-20000",
-            "valid":false
+            "valid":true
         }, 
 
         "pipelineF":{
@@ -183,13 +179,6 @@
             "valid":false
         }, 
         
-        "w2v5ksgd":{
-            "name": "w2v5ksgd",
-            "sequence": ["w2v-generic-5000", "sgd"],
-            "type":"binary",
-            "encoder": "w2v-generic-5000",
-            "valid":true
-        }, 
 
 
 

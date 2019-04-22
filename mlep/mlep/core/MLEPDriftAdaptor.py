@@ -527,7 +527,6 @@ class MLEPDriftAdaptor():
 
         for item in temporaryModelStore:
             # save the model (i.e. host it)
-            item["MODEL"].trackDrift(self.MLEPConfig["allow_model_confidence"])
             self.MODELS[item["name"]] = item["MODEL"]
             # Because we are simplifying this implementation, we don't actually have pipeline families. Every pipelien is part of the w2v family
             # So we can actually just store data_centroids locally
@@ -613,7 +612,6 @@ class MLEPDriftAdaptor():
             testDataSavePath = ""
 
             # save the model (i.e. host it)
-            pipelineTrained.trackDrift(self.MLEPConfig["allow_model_confidence"])
             self.MODELS[modelSavePath] = pipelineTrained
             # Because we are simplifying this implementation, we don't actually have pipeline families. Every pipelien is part of the w2v family
             # So we can actually just store data_centroids locally
@@ -661,7 +659,6 @@ class MLEPDriftAdaptor():
             testDataSavePath = ""
 
             # save the model (i.e. host it)
-            pipelineTrained.trackDrift(self.MLEPConfig["allow_model_confidence"])
             self.MODELS[modelSavePath] = pipelineTrained
             # Because we are simplifying this implementation, we don't actually have pipeline families. Every pipelien is part of the w2v family
             # So we can actually just store data_centroids locally
@@ -808,8 +805,7 @@ class MLEPDriftAdaptor():
 
     def getTopKNearestModels(self,ensembleModelNames, data):
         #data is a DataSet object
-        ensembleModelPerformance = None
-        ensembleModelDistance = None
+
         # find top-k nearest centroids
         k_val = self.MLEPConfig["kval"]
         # Basic optimization:
@@ -915,6 +911,8 @@ class MLEPDriftAdaptor():
         # First set up list of correct models
         ensembleModelNames = self.getValidModels()
         # Now that we have collection of candidaate models, we use filter_select to decide how to choose the right model
+        ensembleModelPerformance = None
+        ensembleModelDistance = None
         if self.MLEPConfig["filter_select"] == "top-k":
             # sort on top-k best performers
             ensembleModelNames, ensembleModelPerformance = self.getTopKPerformanceModels(ensembleModelNames)
@@ -983,7 +981,7 @@ class MLEPDriftAdaptor():
             # And pass it into predict()
             cls_ = None
             # for regular mode
-            if not self.MLEPConfig["allow_model_confidence"]:
+            if not self.MLEPConfig["allow_model_drift"]:
                 cls_=self.MODELS[_name].predict(locally_encoded_data)
             
             else:
@@ -1079,7 +1077,7 @@ class MLEPDriftAdaptor():
                     else:
                         raise NotImplementedError()
 
-        if self.MLEPConfig["allow_model_confidence"]:
+        if self.MLEPConfig["allow_model_drift"]:
             # TODO
             for idx,_name in enumerate(ensembleModelNames):
                 # add data to proper memory (core-mem, gen-mem)
@@ -1089,10 +1087,6 @@ class MLEPDriftAdaptor():
                 # check if model is drifting
                 # if so use core-mem and gen-mem to update the model.
                 pass
-                modelDrifting = self.MODELS[_name].isDrifting()
-                if modelDrifting:
-                    io_utils.std_flush(_name, "has detected drift at", len(self.METRICS["all_errors"]), "samples. Resetting")
-                    
             # TODO for this, for now, just output size of data-mem. See if this changes significantly, and use heuristics ?????
             # TODO Check if there is -- explicit drift -- OR -- enough data in data-mem to update
             # If so, generate new models on data-mem and add them to the pile
