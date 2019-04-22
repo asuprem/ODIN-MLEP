@@ -19,7 +19,7 @@ class w2vGoogleNews(mlep.data_encoder.DataEncoder.DataEncoder):
         self.cosine_similarity = cosine_similarity
 
 
-        self.model = KeyedVectors.load_word2vec_format('config/Sources/GoogleNews-vectors-negative300.bin', binary=True, unicode_errors='ignore', limit=100000)
+        self.model = KeyedVectors.load_word2vec_format('./Sources/GoogleNews-vectors-negative300.bin', binary=True, unicode_errors='ignore', limit=100000)
         self.zeros = zeros
         self.zero_v = self.zeros(shape=(300,))
         self.tokenize = tokenize
