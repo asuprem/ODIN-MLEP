@@ -57,4 +57,10 @@ class w2vGoogleNews(mlep.data_encoder.DataEncoder.DataEncoder):
         return data.mean(axis=0)
 
     def getDistance(self, queryPoint, centroid):
+        """ Compute cosine similarity 
+        
+        The result is in [0,1]. After inversion (1-*), a value closer to 0 means similar, while a value closer to 1 means dissimilar.
+        
+        """
+
         return 1.0 - self.cosine_similarity(queryPoint.reshape(1,-1), centroid.reshape(1,-1)).mean()
