@@ -14,7 +14,8 @@ class MLEPModelDriftAdaptor():
 
         import mlep.trackers.MetricsTracker as MetricsTracker
         import mlep.trackers.ModelDB as ModelDB
-        
+        import mlep.trackers.ModelTracker as ModelTracker
+
         self.setUpCoreVars()
         self.ModelDB = ModelDB.ModelDB()
 
@@ -27,7 +28,7 @@ class MLEPModelDriftAdaptor():
         self.setUpExplicitDriftTracker()
         self.setUpUnlabeledDriftTracker()
         self.setUpMemories()
-        self.setUpModelTracker()
+        self.ModelTracker = ModelTracker.ModelTracker()
 
         io_utils.std_flush("Finished initializing MLEP...")
 
@@ -50,20 +51,6 @@ class MLEPModelDriftAdaptor():
         self.HASHMAX = sys.maxsize
 
 
-    def setUpModelTracker(self,):
-        io_utils.std_flush("\tStarted setting up model tracking at", time_utils.readable_time())
-        
-        self.MODEL_TRACK = {}
-        self.MODEL_TRACK["recent"] = []
-        self.MODEL_TRACK["recent-new"] = []
-        self.MODEL_TRACK["recent-new"] = []
-        self.MODEL_TRACK["recent-updates"] = []
-        self.MODEL_TRACK["historical"] = []
-        self.MODEL_TRACK["historical-new"] = []
-        self.MODEL_TRACK["historical-updates"] = []
-        self.MODEL_TRACK["train"] = []
-
-        io_utils.std_flush("\tFinished setting up model tracking at", time_utils.readable_time())
 
 
     def setUpUnlabeledDriftTracker(self,):
@@ -127,61 +114,11 @@ class MLEPModelDriftAdaptor():
         """Initialize time attributes."""
         # Internal clock of the server.
         self.overallTimer = None
-        # Internal clock of the models.
-        self.MLEPModelTimer = time.time()
+
     def updateTime(self,timerVal):
         """ Manually updating time for experimental evaluation """
         self.overallTimer = timerVal
 
-
-    def updateModelStore(self,):
-        # These are models generated and updated in the prior update
-        # Only generated models in prior update
-        RECENT_NEW = self.ModelDB.getNewModelsSince(self.MLEPModelTimer)
-        # Only update models in prior update
-        RECENT_UPDATES = self.ModelDB.getUpdateModelsSince(self.MLEPModelTimer)
-        # All models in prior update
-        RECENT_MODELS = self.ModelDB.getModelsSince(self.MLEPModelTimer)
-        
-        # All models
-        self.MODEL_TRACK["historical"] = self.ModelDB.getModelsSince()
-        # All generated models
-        self.MODEL_TRACK["historical-new"] = self.ModelDB.getNewModelsSince()
-        # All update models
-        self.MODEL_TRACK["historical-updates"] = self.ModelDB.getUpdateModelsSince()
-
-        if len(RECENT_NEW) > 0:
-            self.MODEL_TRACK["recent-new"] = [item for item in RECENT_NEW]
-            #else fallback
-        if len(self.MODEL_TRACK["recent-new"]) == 0:
-            self.MODEL_TRACK["recent-new"] = [item for item in self.MODEL_TRACK["train"]]
-        
-        if len(RECENT_UPDATES) > 0:
-            self.MODEL_TRACK["recent-updates"] = [item for item in RECENT_UPDATES]
-        #else fallback
-        if len(self.MODEL_TRACK["recent-updates"]) == 0:
-            self.MODEL_TRACK["recent-updates"] = [item for item in self.MODEL_TRACK["recent-new"]]
-                
-        if len(RECENT_MODELS) > 0:
-            self.MODEL_TRACK["recent"] = [item for item in RECENT_MODELS]
-            #else don't change it
-        if len(self.MODEL_TRACK["recent"]) == 0:
-            self.MODEL_TRACK["recent"] = list(set(self.MODEL_TRACK["recent-updates"] + self.MODEL_TRACK["recent-new"]))
-            
-
-        if len(self.MODEL_TRACK["historical-updates"]) == 0:
-            # No update models found. Fall back on Historical New
-            self.MODEL_TRACK["historical-updates"] = [item for item in self.MODEL_TRACK["historical-new"]]
-        
-        # Update Model Timer
-        self.MLEPModelTimer = time.time()
-
-        # Clean display
-        self.MODEL_TRACK["recent-new-display"] = [item[:item.find('_')] for item in self.MODEL_TRACK["recent-new"]]
-        self.MODEL_TRACK["recent-updates-display"] = [item[:item.find('_')] for item in self.MODEL_TRACK["recent-updates"]]
-
-        io_utils.std_flush("New Models: ", self.MODEL_TRACK["recent-new-display"])
-        io_utils.std_flush("Update Models: ", self.MODEL_TRACK["recent-updates-display"])
 
 
     def setUpEncoders(self):
@@ -236,7 +173,7 @@ class MLEPModelDriftAdaptor():
         io_utils.std_flush("Completed", memory_type, "-memory based Model Update at", time_utils.readable_time())
 
         # Now we update model store.
-        self.updateModelStore()
+        self.ModelTracker.updateModelStore(self.ModelDB)
 
     def getTrainingData(self, memory_type="scheduled"):
         """ Get the data in self.SCHEDULED_DATA_FILE """
@@ -319,7 +256,6 @@ class MLEPModelDriftAdaptor():
         # create a copy; rename details across everything
         # update copy
         # push details to DB
-        # if copy's source is in MODEL_TRACK["recent"], add it to MODEL_TRACK["recent"] as well
         prune_val = 5
         if self.MLEPConfig["update_prune"] == "C":
             # Keep constant to new
@@ -328,7 +264,7 @@ class MLEPModelDriftAdaptor():
             raise NotImplementedError()
         
         temporaryModelStore = []
-        modelSaveNames = [modelSaveName for modelSaveName in self.MODEL_TRACK[models_to_update]]
+        modelSaveNames = [modelSaveName for modelSaveName in self.ModelTracker.get(models_to_update)]
         modelDetails = self.ModelDB.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
         pipelineNameDict = self.ModelDB.getDetails(modelDetails, 'pipelineName', 'dict')
         for modelSaveName in modelSaveNames:
@@ -393,8 +329,8 @@ class MLEPModelDriftAdaptor():
     # trainData is BatchedLocal
     def initialTrain(self,traindata,models= "all"):
         self.train(traindata)
-        self.MODEL_TRACK["train"] = self.ModelDB.getModelsSince()
-        self.updateModelStore()
+        self.ModelTracker._set("train", self.ModelDB.getModelsSince())
+        self.ModelTracker.updateModelStore(self.ModelDB)
 
 
     def train(self,traindata, models = 'all'):
@@ -448,7 +384,7 @@ class MLEPModelDriftAdaptor():
 
     def getValidModels(self,):
         """ get valid models """    
-        ensembleModelNames = [item for item in self.MODEL_TRACK[self.MLEPConfig["select_method"]]]
+        ensembleModelNames = [item for item in self.ModelTracker.get(self.MLEPConfig["select_method"])]
         return ensembleModelNames
 
 
