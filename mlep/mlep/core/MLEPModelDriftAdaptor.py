@@ -18,11 +18,8 @@ class MLEPModelDriftAdaptor():
 
         self.setUpCoreVars()
         self.ModelDB = ModelDB.ModelDB()
-
         self.loadConfig(config_dict)
         self.initializeTimers()
-        #self.setupDbConnection()
-        #self.initializeDb()
         self.setUpEncoders()
         self.METRICS = MetricsTracker.MetricsTracker()
         self.setUpExplicitDriftTracker()
@@ -49,8 +46,6 @@ class MLEPModelDriftAdaptor():
 
         import sys
         self.HASHMAX = sys.maxsize
-
-
 
 
     def setUpUnlabeledDriftTracker(self,):
@@ -99,7 +94,6 @@ class MLEPModelDriftAdaptor():
         config_path -- [str] Path to the JSON configuration file.
         """
         io_utils.std_flush("\tStarted loading JSON configuration file at", time_utils.readable_time())
-
         self.config = config_dict
         if self.config["filter_select"] != "nearest":
             raise ValueError("MLEPModelDriftAdaptor requires nearest for filter_select")
@@ -107,7 +101,6 @@ class MLEPModelDriftAdaptor():
         self.MLEPModels = self.config["models"]
         self.MLEPPipelines = self.getValidPipelines()
         self.MLEPEncoders = self.getValidEncoders()
-
         io_utils.std_flush("\tFinished loading JSON configuration file at", time_utils.readable_time())
 
     def initializeTimers(self):
@@ -361,31 +354,6 @@ class MLEPModelDriftAdaptor():
                                 training_data=str(trainDataSavePath), test_data=str(testDataSavePath), precision=precision, recall=recall, score=score,
                                 _type=str(currentPipeline["type"]), active=1)
 
-
-    def createModelId(self, timestamp, pipelineName, fscore):
-        strA = time_utils.time_to_id(timestamp)
-        strB = time_utils.time_to_id(hash(pipelineName)%self.HASHMAX)
-        strC = time_utils.time_to_id(fscore, 5)
-        return "_".join([strA,strB,strC])
-        
-    
-    def addAugmentation(self,augmentation):
-        self.AUGMENT = augmentation
-
-    
-    def getValidPipelines(self,):
-        """ get pipelines that are, well, valid """
-        return {item:self.config["pipelines"][item] for item in self.config["pipelines"] if self.config["pipelines"][item]["valid"]}
-
-    def getValidEncoders(self,):
-        """ get valid encoders """
-        # iterate through pipelines, get encoders that are valid, and return those from config->encoders
-        return {item:self.config["encoders"][item] for item in {self.MLEPPipelines[_item]["encoder"]:1 for _item in self.MLEPPipelines}}
-
-    def getValidModels(self,):
-        """ get valid models """    
-        ensembleModelNames = [item for item in self.ModelTracker.get(self.MLEPConfig["select_method"])]
-        return ensembleModelNames
 
 
     def getTopKNearestModels(self,ensembleModelNames, data):
@@ -661,7 +629,6 @@ class MLEPModelDriftAdaptor():
 
 
     def setUpMemories(self,):
-
         io_utils.std_flush("\tStarted setting up memories at", time_utils.readable_time())
         import mlep.trackers.MemoryTracker as MemoryTracker
         self.MEMTRACK = MemoryTracker.MemoryTracker()
@@ -683,7 +650,34 @@ class MLEPModelDriftAdaptor():
         
         io_utils.std_flush("\tFinished setting up memories at", time_utils.readable_time())
 
+    
 
+
+
+
+
+    def createModelId(self, timestamp, pipelineName, fscore):
+        strA = time_utils.time_to_id(timestamp)
+        strB = time_utils.time_to_id(hash(pipelineName)%self.HASHMAX)
+        strC = time_utils.time_to_id(fscore, 5)
+        return "_".join([strA,strB,strC])
+    
+    def addAugmentation(self,augmentation):
+        self.AUGMENT = augmentation
+    
+    def getValidPipelines(self,):
+        """ get pipelines that are, well, valid """
+        return {item:self.config["pipelines"][item] for item in self.config["pipelines"] if self.config["pipelines"][item]["valid"]}
+
+    def getValidEncoders(self,):
+        """ get valid encoders """
+        # iterate through pipelines, get encoders that are valid, and return those from config->encoders
+        return {item:self.config["encoders"][item] for item in {self.MLEPPipelines[_item]["encoder"]:1 for _item in self.MLEPPipelines}}
+
+    def getValidModels(self,):
+        """ get valid models """    
+        ensembleModelNames = [item for item in self.ModelTracker.get(self.MLEPConfig["select_method"])]
+        return ensembleModelNames
 """
 {
     "name": "Python: SimpleExperiment",
