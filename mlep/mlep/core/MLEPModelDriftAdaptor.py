@@ -13,14 +13,15 @@ class MLEPModelDriftAdaptor():
         io_utils.std_flush("Initializing MLEP_MODEL_DRIFT_ADAPTOR")
 
         import mlep.trackers.MetricsTracker as MetricsTracker
-
+        import mlep.trackers.ModelDB as ModelDB
         
         self.setUpCoreVars()
-        self.configureSqlite()
+        self.ModelDB = ModelDB.ModelDB()
+
         self.loadConfig(config_dict)
         self.initializeTimers()
-        self.setupDbConnection()
-        self.initializeDb()
+        #self.setupDbConnection()
+        #self.initializeDb()
         self.setUpEncoders()
         self.METRICS = MetricsTracker.MetricsTracker()
         self.setUpExplicitDriftTracker()
@@ -105,18 +106,6 @@ class MLEPModelDriftAdaptor():
             io_utils.std_flush("\tExplicit drift tracker not used in this run", time_utils.readable_time())
 
 
-    def configureSqlite(self):
-        """Configure SQLite to convert numpy arrays to TEXT when INSERTing, and TEXT back to numpy
-        arrays when SELECTing."""
-        io_utils.std_flush("\tStarted configuring SQLite at", time_utils.readable_time())
-
-        import numpy as np
-        sqlite3.register_adapter(np.ndarray, sqlite_utils.adapt_array)
-        sqlite3.register_converter("array", sqlite_utils.convert_array)
-
-        io_utils.std_flush("\tFinished configuring SQLite at", time_utils.readable_time())
-
-
     def loadConfig(self, config_dict):
         """Load JSON configuration file and initialize attributes.
 
@@ -145,64 +134,21 @@ class MLEPModelDriftAdaptor():
         self.overallTimer = timerVal
 
 
-    def setupDbConnection(self):
-        """Set up connection to a SQLite database."""
-        io_utils.std_flush("\tStarted setting up database connection at", time_utils.readable_time())
-            
-        self.DB_CONN = None
-        try:
-            self.DB_CONN = sqlite3.connect("file::memory:", detect_types=sqlite3.PARSE_DECLTYPES)
-        except sqlite3.Error as e:
-            # TODO handle these
-            print(e)
-
-        io_utils.std_flush("\tFinished setting up database connection at", time_utils.readable_time())
-
-    def initializeDb(self):
-        """Create tables in a SQLite database."""
-
-        io_utils.std_flush("\tStarted initializing database at", time_utils.readable_time())
-        cursor = self.DB_CONN.cursor()
-        cursor.execute("""Drop Table IF EXISTS Models""")
-        cursor.execute("""
-            CREATE TABLE Models(
-                modelid         text,
-                parentmodel     text,
-                pipelineName    text,
-                timestamp       real,
-                data_centroid   array,
-                trainingModel   text,
-                trainingData    text,
-                testData        text,
-                precision       real,
-                recall          real,
-                fscore          real,
-                type            text,
-                active          integer,
-                PRIMARY KEY(modelid),
-                FOREIGN KEY(parentmodel) REFERENCES Models(trainingModel)
-            )
-        """)
-        self.DB_CONN.commit()
-        cursor.close()
-
-        io_utils.std_flush("\tFinished initializing database at", time_utils.readable_time())
-
     def updateModelStore(self,):
         # These are models generated and updated in the prior update
         # Only generated models in prior update
-        RECENT_NEW = self.getNewModelsSince(self.MLEPModelTimer)
+        RECENT_NEW = self.ModelDB.getNewModelsSince(self.MLEPModelTimer)
         # Only update models in prior update
-        RECENT_UPDATES = self.getUpdateModelsSince(self.MLEPModelTimer)
+        RECENT_UPDATES = self.ModelDB.getUpdateModelsSince(self.MLEPModelTimer)
         # All models in prior update
-        RECENT_MODELS = self.getModelsSince(self.MLEPModelTimer)
+        RECENT_MODELS = self.ModelDB.getModelsSince(self.MLEPModelTimer)
         
         # All models
-        self.MODEL_TRACK["historical"] = self.getModelsSince()
+        self.MODEL_TRACK["historical"] = self.ModelDB.getModelsSince()
         # All generated models
-        self.MODEL_TRACK["historical-new"] = self.getNewModelsSince()
+        self.MODEL_TRACK["historical-new"] = self.ModelDB.getNewModelsSince()
         # All update models
-        self.MODEL_TRACK["historical-updates"] = self.getUpdateModelsSince()
+        self.MODEL_TRACK["historical-updates"] = self.ModelDB.getUpdateModelsSince()
 
         if len(RECENT_NEW) > 0:
             self.MODEL_TRACK["recent-new"] = [item for item in RECENT_NEW]
@@ -268,17 +214,9 @@ class MLEPModelDriftAdaptor():
         # Access the save path
         # pick.dump models to that path
         pass
-        self.closeDBConnection()
-
+        self.ModelDB.close()
         
 
-    def closeDBConnection(self,):
-        try:
-            self.DB_CONN.close()
-        except sqlite3.Error:
-            pass
-
-    
     def MLEPUpdate(self,memory_type="scheduled"):
         if self.MEMTRACK.memorySize(memory_name=memory_type) < self.MLEPConfig["min_train_size"]:
             io_utils.std_flush("Attemped update using", memory_type, "-memory with", self.MEMTRACK.memorySize(memory_name=memory_type),"data samples. Failed due to requirement of", self.MLEPConfig["min_train_size"], "samples." )    
@@ -391,8 +329,8 @@ class MLEPModelDriftAdaptor():
         
         temporaryModelStore = []
         modelSaveNames = [modelSaveName for modelSaveName in self.MODEL_TRACK[models_to_update]]
-        modelDetails = self.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
-        pipelineNameDict = self.getDetails(modelDetails, 'pipelineName', 'dict')
+        modelDetails = self.ModelDB.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
+        pipelineNameDict = self.ModelDB.getDetails(modelDetails, 'pipelineName', 'dict')
         for modelSaveName in modelSaveNames:
             # copy model
             # set up new model
@@ -445,46 +383,17 @@ class MLEPModelDriftAdaptor():
             self.CENTROIDS[item["name"]] = item["data_centroid"]
             # Now we save deets.
 
-            self.insertModelToDb(modelid=item["modelid"], parentmodelid=item["parentmodelid"], pipelineName=item["pipelineName"],
+            self.ModelDB.insertModelToDb(modelid=item["modelid"], parentmodelid=item["parentmodelid"], pipelineName=item["pipelineName"],
                                 timestamp=item["timestamp"], data_centroid=item["data_centroid"], training_model=item["training_model"], 
                                 training_data=item["training_data"], test_data=item["test_data"], precision=item["precision"], recall=item["recall"], score=item["score"],
                                 _type=item["_type"], active=item["active"])
 
 
-    def insertModelToDb(self,modelid=None, parentmodelid=None, pipelineName=None,
-                                timestamp=None, data_centroid=None, training_model=None, 
-                                training_data=None, test_data=None, precision=None, recall=None, score=None,
-                                _type=None, active=1):
-        columns=",".join([  "modelid","parentmodel","pipelineName","timestamp","data_centroid",
-                                "trainingModel","trainingData","testData",
-                                "precision","recall","fscore",
-                                "type","active"])
-            
-        sql = "INSERT INTO Models (%s) VALUES " % columns
-        sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?)"
-        cursor = self.DB_CONN.cursor()
-        
-        cursor.execute(sql, (   modelid,
-                                parentmodelid,
-                                pipelineName, 
-                                timestamp,
-                                data_centroid,
-                                training_model,
-                                training_data,
-                                test_data,
-                                precision,
-                                recall,
-                                score,
-                                _type,
-                                active) )
-        
-        self.DB_CONN.commit()
-        cursor.close()
 
     # trainData is BatchedLocal
     def initialTrain(self,traindata,models= "all"):
         self.train(traindata)
-        self.MODEL_TRACK["train"] = self.getModelsSince()
+        self.MODEL_TRACK["train"] = self.ModelDB.getModelsSince()
         self.updateModelStore()
 
 
@@ -511,7 +420,7 @@ class MLEPModelDriftAdaptor():
             # Now we save deets.
             # Some cleaning
             
-            self.insertModelToDb(modelid=modelIdentifier, parentmodelid=None, pipelineName=str(currentPipeline["name"]),
+            self.ModelDB.insertModelToDb(modelid=modelIdentifier, parentmodelid=None, pipelineName=str(currentPipeline["name"]),
                                 timestamp=timestamp, data_centroid=data_centroid, training_model=str(modelSavePath), 
                                 training_data=str(trainDataSavePath), test_data=str(testDataSavePath), precision=precision, recall=recall, score=score,
                                 _type=str(currentPipeline["type"]), active=1)
@@ -527,93 +436,6 @@ class MLEPModelDriftAdaptor():
     def addAugmentation(self,augmentation):
         self.AUGMENT = augmentation
 
-
-
-    def getModelsSince(self, _time = None):
-        cursor = self.DB_CONN.cursor()
-        if _time is None:
-            # We are getting ALL models
-            sql = "select trainingModel from Models"
-        else:
-            # We are getting models since a time
-            sql = "select trainingModel from Models where timestamp > %s" % _time
-        
-        cursor.execute(sql)
-        tupleResults = cursor.fetchall()
-        cursor.close()
-        return [item[0] for item in tupleResults]
-
-    def getNewModelsSince(self, _time = None):
-        cursor = self.DB_CONN.cursor()
-        if _time is None:
-            # We are getting ALL models
-            sql = "select trainingModel from Models where parentmodel IS NULL"
-        else:
-            # We are getting models since a time
-            sql = "select trainingModel from Models where timestamp > %s and parentmodel IS NULL" % _time
-        
-        cursor.execute(sql)
-        tupleResults = cursor.fetchall()
-        cursor.close()
-        return [item[0] for item in tupleResults]
-        
-        
-    def getUpdateModelsSince(self, _time = None):
-        cursor = self.DB_CONN.cursor()
-        if _time is None:
-            # We are getting ALL models
-            sql = "select trainingModel from Models where parentmodel IS NOT NULL"
-        else:
-            # We are getting models since a time
-            sql = "select trainingModel from Models where timestamp > %s and parentmodel IS NOT NULL" % _time
-        
-        cursor.execute(sql)
-        tupleResults = cursor.fetchall()
-        cursor.close()
-        return [item[0] for item in tupleResults]
-
-    def getModelDetails(self,ensembleModelNames, toGet = None):
-        cursor = self.DB_CONN.cursor()
-        if toGet is None:
-            toGet = ["trainingModel","fscore","pipelineName"]
-        sql = "select " + ",".join(toGet) + " from Models where trainingModel in ({seq})".format(seq=",".join(["?"]*len(ensembleModelNames)))
-        cursor.execute(sql,ensembleModelNames)
-        tupleResults = cursor.fetchall()
-        cursor.close()
-        dictResults = {}
-        for entry in tupleResults:
-            dictResults[entry[0]] = {}
-            for idx,val in enumerate(toGet):
-                dictResults[entry[0]][val] = entry[idx]
-        return dictResults
-
-    def getDetails(self,dataDict,keyVal,_format, order=None):
-        if _format == "list":
-            if order is None:
-                # We need the order for lists
-                raise RuntimeError("No order provided for getDetails with 'list' format")
-            details = []
-            details = [dataDict[item][keyVal] for item in order]
-            return details
-        if _format == "dict":
-            details = {item:dataDict[item][keyVal] for item in dataDict}
-            return details
-
-    def getPipelineToModel(self,):
-        cursor = self.DB_CONN.cursor()
-        sql = "select pipelineName, trainingModel, fscore from Models"
-        cursor.execute(sql)
-        tupleResults = cursor.fetchall()
-        cursor.close()
-        dictResults = {}
-        for entry in tupleResults:
-            if entry[0] not in dictResults:
-                dictResults[entry[0]] = []
-            # entry[0] --> pipelineName
-            # entry[1] --> trainingModel        item[0] in step 3 upon return
-            # entry[2] --> fscore               item[1] in step 3 upon return
-            dictResults[entry[0]].append((entry[1], entry[2]))
-        return dictResults
     
     def getValidPipelines(self,):
         """ get pipelines that are, well, valid """
@@ -644,7 +466,7 @@ class MLEPModelDriftAdaptor():
             # dictify for O(1) check
             ensembleModelNamesValid = {item:1 for item in ensembleModelNames}
             # 1. First, collect list of Encoders -- model mapping
-            pipelineToModel = self.getPipelineToModel()
+            pipelineToModel = self.ModelDB.getPipelineToModel()
             
             # 2. Then create mapping of encoders -- model_save_path
             encoderToModel = {}
@@ -725,13 +547,13 @@ class MLEPModelDriftAdaptor():
 
         # Given ensembleModelNames, use all of them as part of ensemble
         # Run the sqlite query to get model details
-        modelDetails = self.getModelDetails(ensembleModelNames)
+        modelDetails = self.ModelDB.getModelDetails(ensembleModelNames)
         if self.MLEPConfig["weight_method"] == "performance":
             if ensembleModelPerformance is not None:
                 weights = ensembleModelPerformance
             else:
                 # request DB for performance (f-score)
-                weights = self.getDetails(modelDetails, 'fscore', 'list', order=ensembleModelNames)
+                weights = self.ModelDB.getDetails(modelDetails, 'fscore', 'list', order=ensembleModelNames)
             sumWeights = sum(weights)
             weights = [item/sumWeights for item in weights]
         elif self.MLEPConfig["weight_method"] == "unweighted":
@@ -742,7 +564,7 @@ class MLEPModelDriftAdaptor():
 
         # Get encoder types in ensembleModelNames                       
         # build local dictionary of data --> encodedVersion             
-        pipelineNameDict = self.getDetails(modelDetails, 'pipelineName', 'dict')
+        pipelineNameDict = self.ModelDB.getDetails(modelDetails, 'pipelineName', 'dict')
         localEncoder = {}
         for modelName in pipelineNameDict:
             pipelineName = pipelineNameDict[modelName]
