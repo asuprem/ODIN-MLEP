@@ -1,6 +1,6 @@
 import os, time, json, sys, pdb
 
-import mlep.core.MLEPDriftAdaptor as MLEPDriftAdaptor
+import mlep.core.MLEPModelDriftAdaptor as MLEPModelDriftAdaptor
 import mlep.data_model.BatchedLocal as BatchedLocal
 import mlep.data_model.StreamLocal as StreamLocal
 import mlep.data_set.PseudoJsonTweets as PseudoJsonTweets
@@ -19,9 +19,6 @@ def main():
     mlepConfig = io_utils.load_json("./MLEPServer.json")
 
     # update as per experiment requires
-    mlepConfig["config"]["allow_explicit_drift"] = True
-    mlepConfig["config"]["explicit_drift_mode"] = "ADWIN"
-
     mlepConfig["config"]["weight_method"] = "performance"
     mlepConfig["config"]["select_method"] = "recent"
     mlepConfig["config"]["filter_select"] = "nearest"
@@ -29,14 +26,13 @@ def main():
     # we are not updating internal timer...
     streamData = StreamLocal.StreamLocal(data_source="./data/realisticStreamComb_2013_feb19.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     
-
     augmentation = BatchedLocal.BatchedLocal(data_source="./data/collectedIrrelevant.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     augmentation.load_by_class()
 
     trainingData = BatchedLocal.BatchedLocal(data_source="./data/initialTrainingData.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     trainingData.load()
 
-    MLEPLearner = MLEPDriftAdaptor.MLEPDriftAdaptor(config_dict=mlepConfig, safe_mode=False)
+    MLEPLearner = MLEPModelDriftAdaptor.MLEPModelDriftAdaptor(config_dict=mlepConfig)
     MLEPLearner.initialTrain(traindata=trainingData)
     io_utils.std_flush("Completed training at", time_utils.readable_time())
     MLEPLearner.addAugmentation(augmentation)
@@ -50,6 +46,8 @@ def main():
 
     while streamData.next():
         classification = MLEPLearner.classify(streamData.getObject(), classify_mode="implicit")
+
+
         if streamData.getLabel() is None:
             if classification != streamData.getObject().getValue("true_label"):
                 implicit_mistakes += 1.0
