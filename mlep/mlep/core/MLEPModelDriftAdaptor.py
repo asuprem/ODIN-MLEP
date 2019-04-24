@@ -4,6 +4,9 @@ from mlep.utils import io_utils, sqlite_utils, time_utils
 import sqlite3
 
 
+import mlep.text.DataCharacteristics.CosineSimilarityDataCharacteristics as CosineSimilarityDataCharacteristics
+import mlep.text.DataCharacteristics.OnlineSimilarityDistribution as OnlineSimilarityDistribution
+
 class MLEPModelDriftAdaptor():
     def __init__(self, config_dict):
         """Initialize the learning server.
@@ -95,7 +98,7 @@ class MLEPModelDriftAdaptor():
         """
         io_utils.std_flush("\tStarted loading JSON configuration file at", time_utils.readable_time())
         self.config = config_dict
-        if self.config["filter_select"] != "nearest":
+        if self.config["config"]["filter_select"] != "nearest":
             raise ValueError("MLEPModelDriftAdaptor requires nearest for filter_select")
         self.MLEPConfig = self.config["config"]
         self.MLEPModels = self.config["models"]
@@ -240,6 +243,11 @@ class MLEPModelDriftAdaptor():
             model.clone(self.MODELS[source])
             precision, recall, score = model.update_and_test(X_train, y_train)
 
+        # Store model's data characteristics
+        modelCharacteristics = CosineSimilarityDataCharacteristics.CosineSimilarityDataCharacteristics()
+        modelCharacteristics.buildDistribution(centroid,X_train)
+        model.addDataCharacteristics(modelCharacteristics)
+
         return precision, recall, score, model, centroid
 
     
@@ -254,7 +262,7 @@ class MLEPModelDriftAdaptor():
             # Keep constant to new
             prune_val = len(self.MLEPPipelines)
         else:
-            raise NotImplementedError()
+            prune_val = int(self.MLEPConfig["update_prune"])
         
         temporaryModelStore = []
         modelSaveNames = [modelSaveName for modelSaveName in self.ModelTracker.get(models_to_update)]
