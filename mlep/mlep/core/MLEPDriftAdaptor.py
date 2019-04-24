@@ -477,7 +477,7 @@ class MLEPDriftAdaptor():
             # Keep constant to new
             prune_val = len(self.MLEPPipelines)
         else:
-            raise NotImplementedError()
+            prune_val = int(self.MLEPConfig["update_prune"])
         
         temporaryModelStore = []
         modelSaveNames = [modelSaveName for modelSaveName in self.MODEL_TRACK[models_to_update]]
