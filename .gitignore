@@ -59,4 +59,5 @@ mlep/experiments/logfiles/*
 experiments/data/*.json
 
 **\.ipynb
-*\filememory
+**\filememory
+**\test.db
