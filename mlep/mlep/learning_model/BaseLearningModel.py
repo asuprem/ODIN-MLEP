@@ -36,37 +36,37 @@ class BaseLearningModel:
         self._driftTracker = None
         self.dataCharacteristics = None
 
-    def fit(self, X, y):
+    def fit(self, X, y, **kwargs):
         """Fit the statistical learning model to the training data.
         X -- [array of shape (n_samples, n_features)] Training data.
         y -- [array of shape (n_samples)] Target values for the training data.
         """
-        self._fit(X,y)
+        self._fit(X,y, **kwargs)
         
-    def _fit(self,X,y):
+    def _fit(self,X,y, **kwargs):
         """ Internal function to fit statistical model
 
         This is the one that should be modified for derived classes
 
         """
-        self._model.fit(X, y)
+        self._model.fit(X, y,**kwargs)
 
-    def update(self, X, y):
+    def update(self, X, y,**kwargs):
         """Update the statistical learning model to the training data.
         X -- [array of shape (n_samples, n_features)] Training data.
         y -- [array of shape (n_samples)] Target values for the training data.
         """
-        self._update(X,y)
+        self._update(X,y,**kwargs)
 
-    def _update(self,X,y):
+    def _update(self,X,y,**kwargs):
         """ Internal function to update the statistical model
 
         This is the one that should be modified for derived classes
 
         """
-        self._model.partial_fit(X, y, classes=self.classes)
+        self._model.partial_fit(X, y, classes=self.classes, **kwargs)
 
-    def update_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None):
+    def update_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None,sample_weight=None):
         """Update the statistical learning model to the training data and test
         X -- [array of shape (n_samples, n_features)] Training data.
         y -- [array of shape (n_samples)] Target values for the training data.
@@ -76,11 +76,11 @@ class BaseLearningModel:
         If X_test and y_test are not provided, split value is used (default 0.7) to shuffle and split X_train and y_train
         """
         # TODO handle weird erros, such as X_test specified, but y_test not specified, etc
-        precision, recall, score = self._update_and_test(X_train, y_train, split = split, X_test = X_test, y_test = y_test)
+        precision, recall, score = self._update_and_test(X_train, y_train, split = split, X_test = X_test, y_test = y_test, sample_weight=sample_weight)
 
         return precision, recall, score
 
-    def _update_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None):
+    def _update_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None, sample_weight=None):
         """ Internal update_and_test method
 
         This is the one that should be modified for derived classes
@@ -88,13 +88,16 @@ class BaseLearningModel:
         """
         if X_test is None and y_test is None:
             from sklearn.model_selection import train_test_split
-            X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
+            if sample_weight is not None:
+                X_train, X_test, y_train, y_test, sample_weight, _ = train_test_split(X_train, y_train, sample_weight, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
+            else:
+                X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
     
-        self.update(X_train, y_train)
+        self.update(X_train, y_train, sample_weight=sample_weight)
         precision, recall, score = self._precision_recall_fscore(X_test, y_test)
         return precision, recall, score
 
-    def fit_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None):
+    def fit_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None, sample_weight=None):
         """Fit the statistical learning model to the training data and test
         X -- [array of shape (n_samples, n_features)] Training data.
         y -- [array of shape (n_samples)] Target values for the training data.
@@ -104,10 +107,10 @@ class BaseLearningModel:
         If X_test and y_test are not provided, split value is used (default 0.7) to shuffle and split X_train and y_train
         """
         # TODO handle weird erros, such as X_test specified, but y_test not specified, etc
-        precision, recall, score = self._fit_and_test(X_train, y_train, split = split, X_test = X_test, y_test = y_test)
+        precision, recall, score = self._fit_and_test(X_train, y_train, split = split, X_test = X_test, y_test = y_test, sample_weight=sample_weight)
         return precision, recall, score
 
-    def _fit_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None):
+    def _fit_and_test(self, X_train, y_train, split = 0.7, X_test = None, y_test = None, sample_weight=None):
         """ Internal function to fit the statistical model.
 
         This is the one that should be modified for derived classes
@@ -115,9 +118,12 @@ class BaseLearningModel:
         """
         if X_test is None and y_test is None:
             from sklearn.model_selection import train_test_split
-            X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
+            if sample_weight is not None:
+                X_train, X_test, y_train, y_test, sample_weight, _ = train_test_split(X_train, y_train, sample_weight, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
+            else:
+                X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=1.0-split, random_state = 42, shuffle=True, stratify=y_train)
     
-        self.fit(X_train, y_train)
+        self.fit(X_train, y_train, sample_weight=sample_weight)
         precision, recall, score = self._precision_recall_fscore(X_test, y_test)
         return precision, recall, score
 
