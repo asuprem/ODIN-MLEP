@@ -252,3 +252,5 @@ class BaseLearningModel:
 
     def addDataCharacteristics(self,dataCharacteristics):
         self.dataCharacteristics = dataCharacteristics
+    def getDataCharacteristic(self,_key):
+        return self.dataCharacteristics.get(_key)
