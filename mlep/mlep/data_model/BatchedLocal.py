@@ -68,20 +68,32 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
         # load into a dataframe---?
         
         if self.data_mode == "single":
-            with open(self.data_source,"r") as data_source_file:
-                for line in data_source_file:
-                    self.data.append(self.data_set_class(line))
+            if self.data_location == "local":
+                with open(self.data_source,"r") as data_source_file:
+                    for line in data_source_file:
+                        self.data.append(self.data_set_class(line))
+            elif self.data_location == "memory":
+                pass
+            else:
+                raise NotImplementedError()
 
         # so self.data is a list of [data_set_class(), data_set_class()...]  
     def load_by_class(self,):
         if self.data_mode == "single":
-            with open(self.data_source,"r") as data_source_file:
-                for line in data_source_file:
-                    self.data.append(self.data_set_class(line))
-                    if self.data[-1].getLabel() not in self.classes:
-                        raise ValueError("Label of data item: " + str(self.data[-1].getLabel()) + " does not match any in " + str(self.classes))
-                    self.class_data[self.data[-1].getLabel()].append(self.data[-1])
-                    self.class_statistics[self.data[-1].getLabel()] += 1
+            if self.data_location == "local":
+                with open(self.data_source,"r") as data_source_file:
+                    for line in data_source_file:
+                        self.data.append(self.data_set_class(line))
+                        if self.data[-1].getLabel() not in self.classes:
+                            raise ValueError("Label of data item: " + str(self.data[-1].getLabel()) + " does not match any in " + str(self.classes))
+                        self.class_data[self.data[-1].getLabel()].append(self.data[-1])
+                        self.class_statistics[self.data[-1].getLabel()] += 1
+            elif self.data_location == "memory":
+                for entry in self.data:
+                    self.class_data[entry.getLabel()].append(entry)
+                    self.class_statistics[entry.getLabel()] += 1
+            else:
+                raise NotImplementedError()
     
     def all_class_sizes(self,):
         return sum([self.class_statistics[item] for item in self.class_statistics])
