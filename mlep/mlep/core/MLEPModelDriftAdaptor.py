@@ -1,4 +1,4 @@
-import os, time
+import os, time, sys
 import pdb
 from mlep.utils import io_utils, sqlite_utils, time_utils
 import sqlite3
@@ -35,26 +35,17 @@ class MLEPModelDriftAdaptor():
     def setUpCoreVars(self,):
         self.KNOWN_EXPLICIT_DRIFT_CLASSES = ["LabeledDriftDetector"]
         self.KNOWN_UNLABELED_DRIFT_CLASSES = ["UnlabeledDriftDetector"]
-
         # Setting of 'hosted' models + data cetroids
         self.MODELS = {}
         self.CENTROIDS={}
-
         # Augmenter
         self.AUGMENT = None
-
         # Statistics
-        self.LAST_CLASSIFICATION = 0
-        self.LAST_ENSEMBLE = []
-
-        import sys
+        self.LAST_CLASSIFICATION, self.LAST_ENSEMBLE = 0, []
         self.HASHMAX = sys.maxsize
-
 
     def setUpUnlabeledDriftTracker(self,):
         if self.MLEPConfig["allow_unlabeled_drift"]:
-            io_utils.std_flush("\tStarted setting up unlabeled drift tracker at", time_utils.readable_time())
-            
             if self.MLEPConfig["unlabeled_drift_class"] not in self.KNOWN_UNLABELED_DRIFT_CLASSES:
                 raise ValueError("Unlabeled drift class '%s' in configuration is not part of any known Unlabeled Drift Classes: %s"%(self.MLEPConfig["unlabeled_drift_class"], str(self.KNOWN_UNLABELED_DRIFT_CLASSES)))
             if self.MLEPConfig["unlabeled_drift_mode"] != "EnsembleDisagreement":
@@ -65,27 +56,20 @@ class MLEPModelDriftAdaptor():
             driftModuleImport = __import__("mlep.drift_detector.%s.%s"%(driftModule, driftTracker), fromlist=[driftTracker])
             driftTrackerClass = getattr(driftModuleImport,driftTracker)
             self.UNLABELED_DRIFT_TRACKER = driftTrackerClass(**driftArgs)
-
-            io_utils.std_flush("\tFinished setting up unlabeled drift tracker at", time_utils.readable_time())
         else:
             self.UNLABELED_DRIFT_TRACKER = None
             io_utils.std_flush("\tUnlabeled drift tracker not used in this run", time_utils.readable_time())
 
     def setUpExplicitDriftTracker(self,):
         if self.MLEPConfig["allow_explicit_drift"]:
-            io_utils.std_flush("\tStarted setting up explicit drift tracker at", time_utils.readable_time())
-            
             if self.MLEPConfig["explicit_drift_class"] not in self.KNOWN_EXPLICIT_DRIFT_CLASSES:
                 raise ValueError("Explicit drift class '%s' in configuration is not part of any known Explicit Drift Classes: %s"%(self.MLEPConfig["explicit_drift_class"], str(self.KNOWN_EXPLICIT_DRIFT_CLASSES)))
-
             driftTracker = self.MLEPConfig["explicit_drift_mode"]
             driftModule = self.MLEPConfig["explicit_drift_class"]
             driftArgs = self.MLEPConfig["drift_args"] if "drift_args" in self.MLEPConfig else {}
             driftModuleImport = __import__("mlep.drift_detector.%s.%s"%(driftModule, driftTracker), fromlist=[driftTracker])
             driftTrackerClass = getattr(driftModuleImport,driftTracker)
             self.EXPLICIT_DRIFT_TRACKER = driftTrackerClass(**driftArgs)
-
-            io_utils.std_flush("\tFinished setting up explicit drift tracker at", time_utils.readable_time())
         else:
             self.EXPLICIT_DRIFT_TRACKER = None
             io_utils.std_flush("\tExplicit drift tracker not used in this run", time_utils.readable_time())
@@ -140,15 +124,7 @@ class MLEPModelDriftAdaptor():
                         **encoder_config["fail-args"])
                 self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])
                 
-        io_utils.std_flush("\tFinished setting up encoders at", time_utils.readable_time())
-
-    def shutdown(self):
-        # save models - because they are all heald in memory??
-        # Access the save path
-        # pick.dump models to that path
-        pass
-        self.ModelDB.close()
-        
+        io_utils.std_flush("\tFinished setting up encoders at", time_utils.readable_time())    
 
     def MLEPUpdate(self,memory_type="scheduled"):
         if self.MEMTRACK.memorySize(memory_name=memory_type) < self.MLEPConfig["min_train_size"]:
@@ -156,9 +132,8 @@ class MLEPModelDriftAdaptor():
             return
             # TODO update the learning model itself to reject update with too few? Or let user handle this issue?
         io_utils.std_flush("Update using", memory_type, "-memory at", time_utils.ms_to_readable(self.overallTimer), "with", self.MEMTRACK.memorySize(memory_name=memory_type),"data samples." )
-        # Get the training data from Memory
+        # Get the training data from Memory (and clear the memory)
         TrainingData = self.getTrainingData(memory_type=memory_type)
-        self.MEMTRACK.clearMemory(memory_name=memory_type)
         
         # Generate
         self.train(TrainingData)
@@ -173,18 +148,11 @@ class MLEPModelDriftAdaptor():
 
     def getTrainingData(self, memory_type="scheduled"):
         """ Get the data in self.SCHEDULED_DATA_FILE """
-
-        # need to load it as  BatchedModel...
-        # (So, first scheduledDataFile needs to save stuff as BatchedModel...)
-
-        # We load stuff from batched model
-        # Then we check how many for each class
-        # perform augmentation for the binary case
+        # perform augmentation for the binary case if there is not enough of each type; enriching with existing negatives
         import random
         scheduledTrainingData = None
-
-        # TODO close the opened one before opening a read connection!!!!!
-        scheduledTrainingData = self.MEMTRACK.transferMemory(memory_name = memory_type)
+        scheduledTrainingData = self.MEMTRACK.transferMemory(memory_name=memory_type)
+        self.MEMTRACK.clearMemory(memory_name=memory_type)
         scheduledTrainingData.load_by_class()
 
         if self.MEMTRACK.getClassifyMode() == "binary":
@@ -216,7 +184,6 @@ class MLEPModelDriftAdaptor():
         
         If source is None, this is create. Else this is a generate.
         """
-
         # Data setup
         encoderName = pipeline["sequence"][0]
 
@@ -244,22 +211,16 @@ class MLEPModelDriftAdaptor():
             precision, recall, score = model.update_and_test(X_train, y_train)
 
         # Store model's data characteristics
-        modelCharacteristics = CosineSimilarityDataCharacteristics.CosineSimilarityDataCharacteristics()
+        modelCharacteristics = CosineSimilarityDataCharacteristics.CosineSimilarityDataCharacteristics(nBins=40, alpha = 0.6)
         modelCharacteristics.buildDistribution(centroid,X_train)
         model.addDataCharacteristics(modelCharacteristics)
 
         return precision, recall, score, model, centroid
 
-    
 
     def update(self, traindata, models_to_update='recent'):
-        # for each model in self.MODELS
-        # create a copy; rename details across everything
-        # update copy
-        # push details to DB
-        prune_val = 5
-        if self.MLEPConfig["update_prune"] == "C":
-            # Keep constant to new
+        # forEach(self.MODELS) --> create a copy; update copy; push details to DB
+        if self.MLEPConfig["update_prune"] == "C":  # Keep constant to number of valid pipelines
             prune_val = len(self.MLEPPipelines)
         else:
             prune_val = int(self.MLEPConfig["update_prune"])
@@ -269,40 +230,23 @@ class MLEPModelDriftAdaptor():
         modelDetails = self.ModelDB.getModelDetails(modelSaveNames) # Gets fscore, pipelineName, modelSaveName
         pipelineNameDict = self.ModelDB.getDetails(modelDetails, 'pipelineName', 'dict')
         for modelSaveName in modelSaveNames:
-            # copy model
-            # set up new model
-            
-            # Check if model can be updated (some models cannot be updated)
+            # copy model and  set up new model after checking if model can be updated
             if not self.MODELS[modelSaveName].isUpdatable():
                 continue
-
             currentPipeline = self.MLEPPipelines[pipelineNameDict[modelSaveName]]
             precision, recall, score, pipelineTrained, data_centroid = self.createPipeline(traindata, currentPipeline, modelSaveName)
             timestamp = time.time()
             modelIdentifier = self.createModelId(timestamp, currentPipeline["name"], score)
             modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
-            trainDataSavePath = ""
-            testDataSavePath = ""
+            trainDataSavePath, testDataSavePath = "", ""
             
             # We temporarily load to dictionary for sorting later.
             dicta={}
-            dicta["name"] = modelSavePath
-            dicta["MODEL"] = pipelineTrained
-            dicta["CENTROID"] = data_centroid
-            dicta["modelid"] = modelIdentifier
-            dicta["parentmodelid"] = str(modelSaveName)
-            dicta["pipelineName"] = str(currentPipeline["name"])
-            dicta["timestamp"] = timestamp
-            dicta["data_centroid"] = data_centroid
-            dicta["training_model"] = str(modelSavePath)
-            dicta["training_data"] = str(trainDataSavePath)
-            dicta["test_data"] = str(testDataSavePath)
-            dicta["precision"] = precision
-            dicta["recall"] = recall
-            dicta["score"] = score
-            dicta["_type"] = str(currentPipeline["type"])
-            dicta["active"] = 1
-
+            dicta["name"] = modelSavePath; dicta["MODEL"] = pipelineTrained; dicta["CENTROID"] = data_centroid; dicta["modelid"] = modelIdentifier
+            dicta["parentmodelid"] = str(modelSaveName); dicta["pipelineName"] = str(currentPipeline["name"]); dicta["timestamp"] = timestamp
+            dicta["data_centroid"] = data_centroid; dicta["training_model"] = str(modelSavePath); dicta["training_data"] = str(trainDataSavePath)
+            dicta["test_data"] = str(testDataSavePath); dicta["precision"] = precision; dicta["recall"] = recall; dicta["score"] = score
+            dicta["_type"] = str(currentPipeline["type"]); dicta["active"] = 1
             temporaryModelStore.append(dicta)
 
         if len(temporaryModelStore) > prune_val:
@@ -312,27 +256,20 @@ class MLEPModelDriftAdaptor():
             temporaryModelStore = temporaryModelStore[:prune_val]
 
         for item in temporaryModelStore:
-            # save the model (i.e. host it)
+            # save the model
             item["MODEL"].trackDrift(self.MLEPConfig["allow_model_confidence"])
             self.MODELS[item["name"]] = item["MODEL"]
-            # Because we are simplifying this implementation, we don't actually have pipeline families. Every pipelien is part of the w2v family
-            # So we can actually just store data_centroids locally
-            self.CENTROIDS[item["name"]] = item["data_centroid"]
-            # Now we save deets.
 
             self.ModelDB.insertModelToDb(modelid=item["modelid"], parentmodelid=item["parentmodelid"], pipelineName=item["pipelineName"],
                                 timestamp=item["timestamp"], data_centroid=item["data_centroid"], training_model=item["training_model"], 
                                 training_data=item["training_data"], test_data=item["test_data"], precision=item["precision"], recall=item["recall"], score=item["score"],
                                 _type=item["_type"], active=item["active"])
 
-
-
     # trainData is BatchedLocal
     def initialTrain(self,traindata,models= "all"):
         self.train(traindata)
         self.ModelTracker._set("train", self.ModelDB.getModelsSince())
         self.ModelTracker.updateModelStore(self.ModelDB)
-
 
     def train(self,traindata, models = 'all'):
         """ Function to train traindata """
@@ -344,24 +281,15 @@ class MLEPModelDriftAdaptor():
             timestamp = time.time()
             modelIdentifier = self.createModelId(timestamp, currentPipeline["name"],score) 
             modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
-            trainDataSavePath = ""
-            testDataSavePath = ""
-
-            # save the model (i.e. host it)
+            trainDataSavePath, testDataSavePath = "", ""
+            # save the model
             pipelineTrained.trackDrift(self.MLEPConfig["allow_model_confidence"])
             self.MODELS[modelSavePath] = pipelineTrained
-            # Because we are simplifying this implementation, we don't actually have pipeline families. Every pipelien is part of the w2v family
-            # So we can actually just store data_centroids locally
-            self.CENTROIDS[modelSavePath] = data_centroid
-            del pipelineTrained
-            # Now we save deets.
-            # Some cleaning
-            
+            del pipelineTrained            
             self.ModelDB.insertModelToDb(modelid=modelIdentifier, parentmodelid=None, pipelineName=str(currentPipeline["name"]),
                                 timestamp=timestamp, data_centroid=data_centroid, training_model=str(modelSavePath), 
                                 training_data=str(trainDataSavePath), test_data=str(testDataSavePath), precision=precision, recall=recall, score=score,
                                 _type=str(currentPipeline["type"]), active=1)
-
 
 
     def getTopKNearestModels(self,ensembleModelNames, data):
@@ -374,12 +302,10 @@ class MLEPModelDriftAdaptor():
         if k_val >= len(ensembleModelNames):
             pass
         else:
-
             # dictify for O(1) check
             ensembleModelNamesValid = {item:1 for item in ensembleModelNames}
             # 1. First, collect list of Encoders -- model mapping
-            pipelineToModel = self.ModelDB.getPipelineToModel()
-            
+            pipelineToModel = self.ModelDB.getPipelineDetails()
             # 2. Then create mapping of encoders -- model_save_path
             encoderToModel = {}
             for _pipeline in pipelineToModel:
@@ -394,37 +320,21 @@ class MLEPModelDriftAdaptor():
             for _encoder in encoderToModel:
                 kClosestPerEncoder[_encoder] = []
                 _encodedData = self.ENCODERS[_encoder].encode(data.getData())
-                # Find distance to all appropriate models
-                # Then sort and take top-k
-                # This can probably be optimized to not perform unneeded Distance calculations (if, e.g. two models have the same training dataset - something to consider)
-                #   NOTE --> We need to make sure item[0] (modelName)
-                #   NOTE --> item[1] : fscore
-                #np.linalg.norm(_encodedData-self.CENTROIDS[item[0]])
-                kClosestPerEncoder[_encoder]=[(self.ENCODERS[_encoder].getDistance(_encodedData, self.CENTROIDS[item[0]]), item[1], item[0]) for item in encoderToModel[_encoder] if item[0] in ensembleModelNamesValid]
-                # Default sort on first param (norm); sort on distance - smallest to largest
-                # tup[0] --> norm
-                # tup[1] --> fscore
-                # tup[2] --> modelName
-                # TODO normalize distance to 0:1
-                # Need to do this during centroid construction
-                # for the training data, in addition to storing centroid, store furthest data point distance
-                # Then during distance getting, we compare the distance to max_distance in getDistance() and return a 0-1 normalized. Anything outside max_distance is floored to 1.
+                # Find distance, then sort and take top-k. item[0] (modelName). item[1] : fscore
+                # np.linalg.norm(_encodedData-CENTROID)
+                kClosestPerEncoder[_encoder]=[(self.ENCODERS[_encoder].getDistance(_encodedData, self.MODELS[item[0]].getDataCharacteristic("centroid")), item[1], item[0]) for item in encoderToModel[_encoder] if item[0] in ensembleModelNamesValid]
+                # tup[0] --> norm; tup[1] --> fscore; tup[2] --> modelName
                 kClosestPerEncoder[_encoder].sort(key=lambda tup:tup[0])
                 # Truncate to top-k
                 kClosestPerEncoder[_encoder] = kClosestPerEncoder[_encoder][:k_val]
-
-            # 4. Put them all together and sort on performance
-            # distance weighted performance
+            # 4. Put them all together and sort on performance; distance weighted performance
             kClosest = []
             for _encoder in kClosestPerEncoder:
                 kClosest+=kClosestPerEncoder[_encoder]
             # Sorting by tup[1] --> fscore
             kClosest.sort(key=lambda tup:tup[1], reverse=True)
 
-            # 5. Return top-k (so two levels of k, finally returning k models)
-            # item[0] --> norm
-            # item[1] --> fscore
-            # item[2] --> modelName
+            # 5. Return top-k (item[0] --> norm; item[1] --> fscore; item[2] --> modelName)
             kClosest = kClosest[:k_val]
             ensembleModelNames = [None]*k_val
             ensembleModelDistance = [None]*k_val
@@ -686,6 +596,9 @@ class MLEPModelDriftAdaptor():
         """ get valid models """    
         ensembleModelNames = [item for item in self.ModelTracker.get(self.MLEPConfig["select_method"])]
         return ensembleModelNames
+    def shutdown(self):
+        self.ModelDB.close()
+    
 """
 {
     "name": "Python: SimpleExperiment",
