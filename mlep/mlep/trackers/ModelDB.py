@@ -22,7 +22,7 @@ class ModelDB:
     def setupDbConnection(self):
         """ Set up connection to a SQLite database. """
         self.DB_CONN = None
-        self.DB_CONN = sqlite3.connect("file::memory:", detect_types=sqlite3.PARSE_DECLTYPES)
+        self.DB_CONN = sqlite3.connect("test.db", detect_types=sqlite3.PARSE_DECLTYPES)
 
     def initializeDb(self):
         """Create tables in a SQLite database."""
