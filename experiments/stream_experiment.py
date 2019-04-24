@@ -47,18 +47,17 @@ def main():
     while streamData.next():
         if streamData.getLabel() is None:
             classification = MLEPLearner.classify(streamData.getObject(), classify_mode="implicit")
-        else:
-            classification = MLEPLearner.classify(streamData.getObject(), classify_mode="explicit")
-
-
-        if streamData.getLabel() is None:
             if classification != streamData.getObject().getValue("true_label"):
                 implicit_mistakes += 1.0
             implicit_count += 1
         else:
+            classification = MLEPLearner.classify(streamData.getObject(), classify_mode="explicit")
             if classification != streamData.getLabel():
                 explicit_mistakes += 1.0
             explicit_count += 1
+
+        # Implicit and explicit countershad to be moved in due to python pointers...
+            
         totalCounter += 1
 
         
