@@ -5,7 +5,11 @@ class CosineSimilarityDataCharacteristics:
         self.nBins = nBins
         self.distribution = OnlineSimilarityDistribution.OnlineSimilarityDistribution(nBins)
         self.alpha = alpha
-
+        self.attrs={}
+        self.attrs["centroid"] = None
+        self.attrs["delta_low"] = None
+        self.attrs["delta_high"] = None
+        
 
     def buildDistribution(self,centroid,data):
         """ Build the data distribution given a data set and its centroid.
@@ -14,15 +18,15 @@ class CosineSimilarityDataCharacteristics:
 
         """
 
-        self.centroid = centroid
+        self.attrs["centroid"] = centroid
         for _row in data:
             self.distribution.update(TextMetrics.inverted_cosine_similarity(centroid,_row))
 
         # Now that distribution is set up, we need to obtain the Data characteristics, namely the concentration of points...
         #self.max_peak_key = self.distribution.dist.index(max(self.distribution.dist))
         self.delta_low_index, self.delta_high_index, _ = self.getSubArray(self.distribution.dist, self.nBins, int(self.alpha*data.shape[0]))
-        self.delta_low = self.distribution.dist_keys[self.delta_low_index] - (1./self.nBins)
-        self.delta_high = self.distribution.dist_keys[self.delta_high_index]
+        self.attrs["delta_low"] = self.distribution.dist_keys[self.delta_low_index] - (1./self.nBins)
+        self.attrs["delta_high"] = self.distribution.dist_keys[self.delta_high_index]
 
 
 
@@ -56,7 +60,4 @@ class CosineSimilarityDataCharacteristics:
         return result 
     
     def get(self,_key):
-        if _key == "centroid":
-            return self.centroid
-        else:
-            raise NotImplementedError()
+        return self.attrs[_key]

@@ -5,7 +5,11 @@ class L2NormDataCharacteristics:
         self.nBins = nBins
         self.distribution = []
         self.alpha = alpha
-
+        self.attrs={}
+        self.attrs["centroid"] = None
+        self.attrs["delta_low"] = None
+        self.attrs["delta_high"] = None
+        
         self.dist_keys = [item*(1./self.nBins) for item in range(self.nBins+1)]
         self.dist = None
 
@@ -16,12 +20,12 @@ class L2NormDataCharacteristics:
 
         """
 
-        self.centroid = centroid
+        self.attrs["centroid"] = centroid
         self.distribution = [0]*data.shape[0]
         n_min = float("inf")
         n_max = -float("inf")
         for idx in range(data.shape[0]):
-            self.distribution[idx] = np.linalg.norm(data[idx]-self.centroid)
+            self.distribution[idx] = np.linalg.norm(data[idx]-centroid)
             n_max = self.distribution[idx] if self.distribution[idx] > n_max else n_max
             n_min = self.distribution[idx] if self.distribution[idx] < n_min else n_min
         n_range = n_max - n_min
@@ -32,8 +36,8 @@ class L2NormDataCharacteristics:
         # Now that distribution is set up, we need to obtain the Data characteristics, namely the concentration of points...
         #self.max_peak_key = self.distribution.dist.index(max(self.distribution.dist))
         self.delta_low_index, self.delta_high_index, _ = self.getSubArray(self.dist, self.nBins, int(self.alpha*data.shape[0]))
-        self.delta_low = self.dist_keys[self.delta_low_index] - (1./self.nBins)
-        self.delta_high = self.dist_keys[self.delta_high_index]
+        self.attrs["delta_low"] = self.dist_keys[self.delta_low_index] - (1./self.nBins)
+        self.attrs["delta_high"] = self.dist_keys[self.delta_high_index]
 
 
 
@@ -65,3 +69,6 @@ class L2NormDataCharacteristics:
             if(abs(resultTmp[2]) < abs(result[2])): 
                 result = resultTmp 
         return result 
+
+    def get(self,_key):
+        return self.attrs[_key]
