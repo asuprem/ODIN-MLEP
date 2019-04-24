@@ -159,7 +159,7 @@ class ModelDB:
             details = {item:dataDict[item][keyVal] for item in dataDict}
             return details
 
-    def getPipelineToModel(self,):
+    def getPipelineDetails(self,):
         cursor = self.DB_CONN.cursor()
         sql = "select pipelineName, trainingModel, fscore from Models"
         cursor.execute(sql)
