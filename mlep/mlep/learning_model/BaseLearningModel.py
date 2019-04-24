@@ -16,6 +16,7 @@ class BaseLearningModel:
         _drifting -- BOOL. Whether model is currently drifting.
 
         _driftTracker -- Internal Drift Tracker. May use one of mlep's drift tracker methods.
+        dataCharacteristics -- Characteristics of data the model was trained with
 
     """
 
@@ -33,6 +34,7 @@ class BaseLearningModel:
         self._trust = 1.0
         self._drifting = False
         self._driftTracker = None
+        self.dataCharacteristics = None
 
     def fit(self, X, y):
         """Fit the statistical learning model to the training data.
@@ -224,7 +226,8 @@ class BaseLearningModel:
 
         if _track is not None:
             self.track_drift = _track
-            self._setupDriftTracker()
+            if self.track_drift:
+                self._setupDriftTracker()
         return self.track_drift
 
     def isDrifting(self):
@@ -247,7 +250,5 @@ class BaseLearningModel:
         """
         raise NotImplementedError()
 
-
-            
-    
-    
+    def addDataCharacteristics(self,dataCharacteristics):
+        self.dataCharacteristics = dataCharacteristics
