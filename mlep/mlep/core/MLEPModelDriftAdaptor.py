@@ -22,14 +22,12 @@ class MLEPModelDriftAdaptor():
         self.setUpCoreVars()
         self.ModelDB = ModelDB.ModelDB()
         self.loadConfig(config_dict)
-        self.initializeTimers()
         self.setUpEncoders()
         self.METRICS = MetricsTracker.MetricsTracker()
         self.setUpExplicitDriftTracker()
         self.setUpUnlabeledDriftTracker()
         self.setUpMemories()
         self.ModelTracker = ModelTracker.ModelTracker()
-
         io_utils.std_flush("Finished initializing MLEP...")
 
     def setUpCoreVars(self,):
@@ -37,12 +35,12 @@ class MLEPModelDriftAdaptor():
         self.KNOWN_UNLABELED_DRIFT_CLASSES = ["UnlabeledDriftDetector"]
         # Setting of 'hosted' models + data cetroids
         self.MODELS = {}
-        self.CENTROIDS={}
         # Augmenter
         self.AUGMENT = None
         # Statistics
         self.LAST_CLASSIFICATION, self.LAST_ENSEMBLE = 0, []
         self.HASHMAX = sys.maxsize
+        self.overallTimer = None
 
     def setUpUnlabeledDriftTracker(self,):
         if self.MLEPConfig["allow_unlabeled_drift"]:
@@ -90,10 +88,6 @@ class MLEPModelDriftAdaptor():
         self.MLEPEncoders = self.getValidEncoders()
         io_utils.std_flush("\tFinished loading JSON configuration file at", time_utils.readable_time())
 
-    def initializeTimers(self):
-        """Initialize time attributes."""
-        # Internal clock of the server.
-        self.overallTimer = None
 
     def updateTime(self,timerVal):
         """ Manually updating time for experimental evaluation """
@@ -359,7 +353,7 @@ class MLEPModelDriftAdaptor():
             classification -- INT -- currently only binary classification is supported
             
         """
-        
+
         
         # First set up list of correct models
         ensembleModelNames = self.getValidModels()
@@ -383,9 +377,7 @@ class MLEPModelDriftAdaptor():
         else:
             weights = len(ensembleModelNames)*[1.0/len(ensembleModelNames)]
         
-
-        # Get encoder types in ensembleModelNames                       
-        # build local dictionary of data --> encodedVersion             
+        # Get encoder types in ensembleModelNames; build local dictionary of data --> encodedVersion             
         pipelineNameDict = self.ModelDB.getDetails(modelDetails, 'pipelineName', 'dict')
         localEncoder = {}
         for modelName in pipelineNameDict:
@@ -414,43 +406,33 @@ class MLEPModelDriftAdaptor():
             # for regular mode
             if not self.MLEPConfig["allow_model_confidence"]:
                 cls_=self.MODELS[_name].predict(locally_encoded_data)
-            
             else:
-                # TODO for model-drift mode, we first check if the data point is ground-truth stream or a prediction stream
-                #  -- if getLabel() on data returns None, it is a prediction stream
-                # -- if getLabel() on data returns a value, it is a ground-truth stream
-                
-                # TODO getLabel() returns value
-                # if explicit_drift_mode is allowed
-                # cls = self.MODELS[_name].predict("explicit", y_label = label) -- > this will perform drift detection internally
                 if classify_mode == "explicit":
-                    # TODO TODO TODO ALERT ALERT ALERT NOT FUNCTIONAL
                     cls_=self.MODELS[_name].predict(locally_encoded_data, mode="explicit", y_label = data.getLabel())
-
-
-
-                # TODO getLabel() returns None
-                # if implicit drift mode is allowed
-                # cls = self.MODELS[_name].predict("implicit") --> also perform drift detection internally
-                if classify_mode == "implicit":
-                    # TODO TODO TODO ALERT ALERT ALERT NOT FUNCTIONAL
+                elif classify_mode == "implicit":
                     cls_=self.MODELS[_name].predict(locally_encoded_data, mode="implicit")
+                else:
+                    raise ValueError("classify_mode must be one of: 'explicit', 'implicit'. Unrecognized mode %s"%classify_mode)
 
             ensembleWeighted[idx] = float(weights[idx]*cls_)
             ensembleRaw[idx] = float(cls_)
-
         # Assume binary. We'll deal with others later
         classification = sum(ensembleWeighted)
         classification =  0 if classification < 0.5 else 1
+    
         
-
         error = 1 if classification != data.getLabel() else 0
         ensembleError = [(1 if ensembleRawScore != data.getLabel() else 0) for ensembleRawScore in ensembleRaw]
 
         self.METRICS.updateMetrics(classification, error, ensembleError, ensembleRaw, ensembleWeighted)
 
+        # We need to store the sample in one of:
+        # core/edge/gen-men-explicit/implicit
+
+
+
+
         # add to scheduled memory if this is explicit data
-        
         if self.MLEPConfig["allow_update_schedule"]:
             if classify_mode == "explicit":
                 self.MEMTRACK.addToMemory(memory_name="scheduled", data=data)
