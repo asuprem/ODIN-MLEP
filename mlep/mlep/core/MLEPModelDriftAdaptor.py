@@ -1,11 +1,14 @@
 import os, time, sys
 import pdb
 from mlep.utils import io_utils, sqlite_utils, time_utils
+from math import log as ln_e, exp
+from numpy import vstack, asarray
 import sqlite3
-
-
+from sklearn.neighbors import KDTree
 import mlep.text.DataCharacteristics.CosineSimilarityDataCharacteristics as CosineSimilarityDataCharacteristics
+import mlep.text.DataCharacteristics.L2NormDataCharacteristics as L2NormDataCharacteristics
 import mlep.text.DataCharacteristics.OnlineSimilarityDistribution as OnlineSimilarityDistribution
+import mlep.trackers.MemoryTracker as MemoryTracker
 
 class MLEPModelDriftAdaptor():
     def __init__(self, config_dict):
@@ -33,6 +36,7 @@ class MLEPModelDriftAdaptor():
     def setUpCoreVars(self,):
         self.KNOWN_EXPLICIT_DRIFT_CLASSES = ["LabeledDriftDetector"]
         self.KNOWN_UNLABELED_DRIFT_CLASSES = ["UnlabeledDriftDetector"]
+        self.ALPHA = 0.6
         # Setting of 'hosted' models + data cetroids
         self.MODELS = {}
         # Augmenter
@@ -120,23 +124,120 @@ class MLEPModelDriftAdaptor():
                 
         io_utils.std_flush("\tFinished setting up encoders at", time_utils.readable_time())    
 
-    def MLEPUpdate(self,memory_type="scheduled"):
+    def MLEPModelBasedUpdate(self):
+        ensembleModelNames = [modelSaveName for modelSaveName in self.ModelTracker.get("recent")]
+        for model_name in ensembleModelNames:
+            # encode the explicit data ...            
+            if self.MODELS[model_name]["memoryTracker"].memorySize("edge-mem-explicit") > 0:
+                io_utils.std_flush("Performing update for %s"%model_name)
+                explicit_memory = self.MODELS[model_name]["memoryTracker"].transferMemory("edge-mem-explicit")
+                encoded_explicit = self.ENCODERS[self.MODELS[model_name]["encoder"]].batchEncode(explicit_memory.getData())
+                io_utils.std_flush("\tObtained %i explicit edge labels"%encoded_explicit.shape[0])
+                core_kdtree = KDTree(encoded_explicit, metric='euclidean')
+                io_utils.std_flush("\tGenerated KD-Tree")
+                implicit_memory = self.MODELS[model_name]["memoryTracker"].transferMemory("edge-mem-implicit")
+                encoded_implicit = self.ENCODERS[self.MODELS[model_name]["encoder"]].batchEncode(implicit_memory.getData())
+                io_utils.std_flush("\tObtained %i implicit edge labels"%encoded_implicit.shape[0])
+
+                explicit_labels = explicit_memory.getLabels()
+                implicit_labels = implicit_memory.getLabels()
+                trainlabels = explicit_labels+implicit_labels
+
+                # get the closest items; response[0] --> distance; response[1] --> indices
+                response = core_kdtree.query(encoded_implicit)
+                io_utils.std_flush("\tObtained distances for implicit memory")
+                scale_fac = ln_e(self.ALPHA)/self.MODELS[model_name]["model"].getDataCharacteristic("delta_high")
+                update_weights = [exp(scale_fac*item) for item in response[0][:,0].tolist()]
+                io_utils.std_flush("\tGenerated weights for implicit samples")
+                # now we have explicit memory with weights (1) and impllicit memory, also with weights (update_weights)
+                # time to perform an update...using encoded_explicit, encoded_implicit, and weights...
+                TrainingData = vstack((encoded_explicit, encoded_implicit))
+                update_weights = [1]*encoded_explicit.shape[0] + update_weights
+                self.updateSingle(TrainingData, trainlabels, model_name, update_weights)
+                self.ModelTracker.updateModelStore(self.ModelDB)
+
+        # Perform generate using explicit data...
+        if self.MEMTRACK.memorySize("gen-mem-explicit") > 0:
+            explicit_memory = self.MEMTRACK.transferMemory("gen-mem-explicit")
+            io_utils.std_flush("\tObtained %i explicit general labels"%self.MEMTRACK.memorySize("gen-mem-explicit"))
+            implicit_memory = self.MEMTRACK.transferMemory("gen-mem-implicit")
+            io_utils.std_flush("\tObtained %i implicit general labels"%self.MEMTRACK.memorySize("gen-mem-implicit"))
+            explicit_labels = explicit_memory.getLabels()
+            implicit_labels = implicit_memory.getLabels()
+            trainlabels = explicit_labels+implicit_labels
+            general_training = {}
+            update_weights = {}
+            for encoder in self.ENCODERS:
+                explicit_encoded = self.ENCODERS[encoder].batchEncode(explicit_memory.getData())
+                implicit_encoded = self.ENCODERS[encoder].batchEncode(implicit_memory.getData())
+                kdtree_gen = KDTree(explicit_encoded, metric='euclidean')
+                response = kdtree_gen.query(implicit_encoded)
+                #scale_fac = ln_e(self.ALPHA)/self.MODELS[model_name]["model"].getDataCharacteristic("delta_high")
+                #No factor for scaling for general memory -- simple exponential weighting
+                __update_weights__ = [exp(item) for item in response[0][:,0].tolist()]
+                general_training[encoder] = vstack((explicit_encoded, implicit_encoded))
+                update_weights[encoder] = [1]*explicit_encoded.shape[0] + __update_weights__
+            self.trainGeneralMemory(general_training, trainlabels, update_weights)
+        self.ModelTracker.updateModelStore(self.ModelDB)
+
+    def trainGeneralMemory(self,traindata, trainlabels, sample_weights=None):
+        """ Function to train traindata """
+        for pipeline in self.MLEPPipelines:
+            # set up pipeline
+            currentPipeline = self.MLEPPipelines[pipeline] 
+            currentEncoder = currentPipeline["sequence"][0]           
+            # get the closest items; response[0] --> distance; response[1] --> indices
+            precision, recall, score, pipelineTrained, data_centroid = self.createDensePipeline(traindata[currentEncoder], trainlabels, currentPipeline, sample_weight = sample_weights[currentEncoder])
+            timestamp = time.time()
+            modelIdentifier = self.createModelId(timestamp, currentPipeline["name"],score) 
+            modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
+            trainDataSavePath, testDataSavePath = "", ""
+            # save the model
+            self.buildModel(_name=modelSavePath, _model=pipelineTrained, _encoder = currentEncoder)
+            del pipelineTrained            
+
+            self.ModelDB.insertModelToDb(modelid=modelIdentifier, parentmodelid=None, pipelineName=str(currentPipeline["name"]),
+                                timestamp=timestamp, data_centroid=data_centroid, training_model=str(modelSavePath), 
+                                training_data=str(trainDataSavePath), test_data=str(testDataSavePath), precision=precision, recall=recall, score=score,
+                                _type=str(currentPipeline["type"]), active=1)
+
+
+    def updateSingle(self,traindata, trainlabels, model_name, sample_weights=None):
+        if not self.MODELS[model_name]["model"].isUpdatable():
+            # generate a model, instead of updating TODO
+            # Additional TODO -- cross validation, or separate test set passing...
+            pass
+        else:
+            # update this single model...
+            modelDetails = self.ModelDB.getModelDetails([model_name]) # Gets fscore, pipelineName, modelSaveName
+            pipelineNameDict = self.ModelDB.getDetails(modelDetails, 'pipelineName', 'dict')
+            currentPipeline = self.MLEPPipelines[pipelineNameDict[model_name]]
+            precision, recall, score, pipelineTrained, data_centroid = self.createDensePipeline(traindata, trainlabels, currentPipeline, model_name, sample_weights)
+            timestamp = time.time()
+            modelIdentifier = self.createModelId(timestamp, currentPipeline["name"], score)
+            modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
+            trainDataSavePath, testDataSavePath = "", ""
+            self.buildModel(_name=modelSavePath, _model=pipelineTrained, _encoder=currentPipeline["sequence"][0])
+            del pipelineTrained            
+
+            self.ModelDB.insertModelToDb(modelid=modelIdentifier, parentmodelid=model_name, pipelineName=str(currentPipeline["name"]),
+                            timestamp=timestamp, data_centroid=data_centroid, training_model=str(modelSavePath), 
+                            training_data=str(trainDataSavePath), test_data=str(testDataSavePath), precision=precision, recall=recall, score=score,
+                            _type=str(currentPipeline["type"]), active=1)
+
+
+    def MLEPMemoryBasedUpdate(self,memory_type="scheduled"):
         if self.MEMTRACK.memorySize(memory_name=memory_type) < self.MLEPConfig["min_train_size"]:
             io_utils.std_flush("Attemped update using", memory_type, "-memory with", self.MEMTRACK.memorySize(memory_name=memory_type),"data samples. Failed due to requirement of", self.MLEPConfig["min_train_size"], "samples." )    
             return
-            # TODO update the learning model itself to reject update with too few? Or let user handle this issue?
         io_utils.std_flush("Update using", memory_type, "-memory at", time_utils.ms_to_readable(self.overallTimer), "with", self.MEMTRACK.memorySize(memory_name=memory_type),"data samples." )
         # Get the training data from Memory (and clear the memory)
         TrainingData = self.getTrainingData(memory_type=memory_type)
-        
-        # Generate
+        # Generate and update
         self.train(TrainingData)
         io_utils.std_flush("Completed", memory_type, "-memory based Model generation at", time_utils.readable_time())
-
-        # update
         self.update(TrainingData,models_to_update=self.MLEPConfig["models_to_update"])
         io_utils.std_flush("Completed", memory_type, "-memory based Model Update at", time_utils.readable_time())
-
         # Now we update model store.
         self.ModelTracker.updateModelStore(self.ModelDB)
 
@@ -172,8 +273,44 @@ class MLEPModelDriftAdaptor():
         else:
             raise NotImplementedError()
 
+    def createDensePipeline(self,data, trainlabels, pipeline, source=None, sample_weight = None):
+        """ Generate or Update a pipeline 
+        
+        If source is None, this is create. Else this is a generate.
+        """
+        # Data setup
+        encoderName = pipeline["sequence"][0]
 
-    def createPipeline(self,data, pipeline, source=None):
+        centroid = self.ENCODERS[encoderName].getCentroid(data)
+
+        # Model setup
+        pipelineModel = pipeline["sequence"][1]
+
+        pipelineModelName = self.MLEPModels[pipelineModel]["scriptName"]
+        pipelineModelModule = __import__("mlep.learning_model.%s"%pipelineModelName, fromlist=[pipelineModelName])
+        pipelineModelClass = getattr(pipelineModelModule,pipelineModelName)
+
+        model = pipelineModelClass()
+
+        precision, recall, score = None, None, None
+        if source is None:
+            # Generate
+            pass
+            precision, recall, score = model.fit_and_test(data, trainlabels, sample_weight=sample_weight)
+        else:
+            # Update
+            model.clone(self.MODELS[source]["model"])
+            precision, recall, score = model.update_and_test(data, trainlabels, sample_weight=sample_weight)
+
+        # Store model's data characteristics
+        #modelCharacteristics = CosineSimilarityDataCharacteristics.CosineSimilarityDataCharacteristics(nBins=40, alpha = 0.6)
+        modelCharacteristics = L2NormDataCharacteristics.L2NormDataCharacteristics(nBins=40, alpha = self.ALPHA)
+        modelCharacteristics.buildDistribution(centroid,data)
+        model.addDataCharacteristics(modelCharacteristics)
+
+        return precision, recall, score, model, centroid
+
+    def createPipeline(self,data, pipeline, source=None, sample_weight = None):
         """ Generate or Update a pipeline 
         
         If source is None, this is create. Else this is a generate.
@@ -198,22 +335,23 @@ class MLEPModelDriftAdaptor():
         if source is None:
             # Generate
             pass
-            precision, recall, score = model.fit_and_test(X_train, y_train)
+            precision, recall, score = model.fit_and_test(X_train, y_train, sample_weight=sample_weight)
         else:
             # Update
-            model.clone(self.MODELS[source])
-            precision, recall, score = model.update_and_test(X_train, y_train)
+            model.clone(self.MODELS[source]["model"])
+            precision, recall, score = model.update_and_test(X_train, y_train, sample_weight=sample_weight)
 
         # Store model's data characteristics
-        modelCharacteristics = CosineSimilarityDataCharacteristics.CosineSimilarityDataCharacteristics(nBins=40, alpha = 0.6)
+        #modelCharacteristics = CosineSimilarityDataCharacteristics.CosineSimilarityDataCharacteristics(nBins=40, alpha = 0.6)
+        modelCharacteristics = L2NormDataCharacteristics.L2NormDataCharacteristics(nBins=40, alpha = self.ALPHA)
         modelCharacteristics.buildDistribution(centroid,X_train)
         model.addDataCharacteristics(modelCharacteristics)
 
         return precision, recall, score, model, centroid
 
 
-    def update(self, traindata, models_to_update='recent'):
-        # forEach(self.MODELS) --> create a copy; update copy; push details to DB
+    def update(self, traindata, models_to_update='recent', sample_weights=None):
+        # forEach(self.MODELS) --> create a copy; update copy; push details to DB            
         if self.MLEPConfig["update_prune"] == "C":  # Keep constant to number of valid pipelines
             prune_val = len(self.MLEPPipelines)
         else:
@@ -225,7 +363,7 @@ class MLEPModelDriftAdaptor():
         pipelineNameDict = self.ModelDB.getDetails(modelDetails, 'pipelineName', 'dict')
         for modelSaveName in modelSaveNames:
             # copy model and  set up new model after checking if model can be updated
-            if not self.MODELS[modelSaveName].isUpdatable():
+            if not self.MODELS[modelSaveName]["model"].isUpdatable():
                 continue
             currentPipeline = self.MLEPPipelines[pipelineNameDict[modelSaveName]]
             precision, recall, score, pipelineTrained, data_centroid = self.createPipeline(traindata, currentPipeline, modelSaveName)
@@ -240,7 +378,7 @@ class MLEPModelDriftAdaptor():
             dicta["parentmodelid"] = str(modelSaveName); dicta["pipelineName"] = str(currentPipeline["name"]); dicta["timestamp"] = timestamp
             dicta["data_centroid"] = data_centroid; dicta["training_model"] = str(modelSavePath); dicta["training_data"] = str(trainDataSavePath)
             dicta["test_data"] = str(testDataSavePath); dicta["precision"] = precision; dicta["recall"] = recall; dicta["score"] = score
-            dicta["_type"] = str(currentPipeline["type"]); dicta["active"] = 1
+            dicta["_type"] = str(currentPipeline["type"]); dicta["active"] = 1; dicta["__pipeline__"] = currentPipeline
             temporaryModelStore.append(dicta)
 
         if len(temporaryModelStore) > prune_val:
@@ -251,8 +389,7 @@ class MLEPModelDriftAdaptor():
 
         for item in temporaryModelStore:
             # save the model
-            item["MODEL"].trackDrift(self.MLEPConfig["allow_model_confidence"])
-            self.MODELS[item["name"]] = item["MODEL"]
+            self.buildModel(_name=item["name"], _model=item["MODEL"], _encoder=item["__pipeline__"]["sequence"][0])
 
             self.ModelDB.insertModelToDb(modelid=item["modelid"], parentmodelid=item["parentmodelid"], pipelineName=item["pipelineName"],
                                 timestamp=item["timestamp"], data_centroid=item["data_centroid"], training_model=item["training_model"], 
@@ -277,13 +414,28 @@ class MLEPModelDriftAdaptor():
             modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
             trainDataSavePath, testDataSavePath = "", ""
             # save the model
-            pipelineTrained.trackDrift(self.MLEPConfig["allow_model_confidence"])
-            self.MODELS[modelSavePath] = pipelineTrained
+            self.buildModel(_name=modelSavePath, _model=pipelineTrained, _encoder = currentPipeline["sequence"][0])
             del pipelineTrained            
+
             self.ModelDB.insertModelToDb(modelid=modelIdentifier, parentmodelid=None, pipelineName=str(currentPipeline["name"]),
                                 timestamp=timestamp, data_centroid=data_centroid, training_model=str(modelSavePath), 
                                 training_data=str(trainDataSavePath), test_data=str(testDataSavePath), precision=precision, recall=recall, score=score,
                                 _type=str(currentPipeline["type"]), active=1)
+
+    def buildModel(self,_name,_model, _encoder):
+        _model.trackDrift(self.MLEPConfig["allow_model_confidence"])
+        if _name in self.MODELS:
+            raise RuntimeError("Error: %s already exists in self.MODELS"%_name)
+        else:
+            self.MODELS[_name] = {}
+            self.MODELS[_name]["model"] = _model
+            # Add memories
+            self.MODELS[_name]["memoryTracker"] = MemoryTracker.MemoryTracker()
+            #self.MODELS[_name]["memoryTracker"].addNewMemory(memory_name="core-mem-explicit",memory_store='memory')
+            self.MODELS[_name]["memoryTracker"].addNewMemory(memory_name="edge-mem-explicit",memory_store='memory')
+            #self.MODELS[_name]["memoryTracker"].addNewMemory(memory_name="core-mem-implicit",memory_store='memory')
+            self.MODELS[_name]["memoryTracker"].addNewMemory(memory_name="edge-mem-implicit",memory_store='memory')
+            self.MODELS[_name]["encoder"] = _encoder
 
 
     def getTopKNearestModels(self,ensembleModelNames, data):
@@ -293,8 +445,10 @@ class MLEPModelDriftAdaptor():
         # find top-k nearest centroids
         k_val = self.MLEPConfig["kval"]
         # don't need any fancy stuff if k-val is more than the number of models we have
-        if k_val >= len(ensembleModelNames):
-            pass
+        #if k_val >= len(ensembleModelNames):
+        if k_val == 0:
+            #pass
+            raise RuntimeError("Why is k 0????????????")
         else:
             # dictify for O(1) check
             ensembleModelNamesValid = {item:1 for item in ensembleModelNames}
@@ -316,7 +470,7 @@ class MLEPModelDriftAdaptor():
                 _encodedData = self.ENCODERS[_encoder].encode(data.getData())
                 # Find distance, then sort and take top-k. item[0] (modelName). item[1] : fscore
                 # np.linalg.norm(_encodedData-CENTROID)
-                kClosestPerEncoder[_encoder]=[(self.ENCODERS[_encoder].getDistance(_encodedData, self.MODELS[item[0]].getDataCharacteristic("centroid")), item[1], item[0]) for item in encoderToModel[_encoder] if item[0] in ensembleModelNamesValid]
+                kClosestPerEncoder[_encoder]=[(self.ENCODERS[_encoder].getDistance(_encodedData, self.MODELS[item[0]]["model"].getDataCharacteristic("centroid")), item[1], item[0]) for item in encoderToModel[_encoder] if item[0] in ensembleModelNamesValid]
                 # tup[0] --> norm; tup[1] --> fscore; tup[2] --> modelName
                 kClosestPerEncoder[_encoder].sort(key=lambda tup:tup[0])
                 # Truncate to top-k
@@ -329,7 +483,11 @@ class MLEPModelDriftAdaptor():
             kClosest.sort(key=lambda tup:tup[1], reverse=True)
 
             # 5. Return top-k (item[0] --> norm; item[1] --> fscore; item[2] --> modelName)
-            kClosest = kClosest[:k_val]
+            numRetrieved = len(kClosest)
+            if numRetrieved <= k_val:
+                k_val = numRetrieved
+            else:
+                kClosest = kClosest[:k_val]
             ensembleModelNames = [None]*k_val
             ensembleModelDistance = [None]*k_val
             ensembleModelPerformance = [None]*k_val
@@ -353,8 +511,6 @@ class MLEPModelDriftAdaptor():
             classification -- INT -- currently only binary classification is supported
             
         """
-
-        
         # First set up list of correct models
         ensembleModelNames = self.getValidModels()
         # Now that we have collection of candidaate models, we use filter_select to decide how to choose the right model
@@ -387,7 +543,6 @@ class MLEPModelDriftAdaptor():
         for encoder in localEncoder:
             localEncoder[encoder] = self.ENCODERS[encoder].encode(data.getData())
 
-
         #---------------------------------------------------------------------
         # Time to classify
         
@@ -395,22 +550,17 @@ class MLEPModelDriftAdaptor():
         ensembleWeighted = [0]*len(ensembleModelNames)
         ensembleRaw = [0]*len(ensembleModelNames)
         for idx,_name in enumerate(ensembleModelNames):
-            # use the prescribed enc; ensembleModelNames are the modelSaveFile
-            # We need the pipeline each is associated with (so that we can extract front-loaded encoder)
             locally_encoded_data = localEncoder[self.MLEPPipelines[pipelineNameDict[_name]]["sequence"][0]]
-            # So we get the model name, access the pipeline name from pipelineNameDict
-            # Then get the encodername from sequence[0]
-            # Then get the locally encoded thingamajig of the data
-            # And pass it into predict()
+            # get the model name; get pipeline name from pipelineNameDict. Then get the encodername from sequence[0], the get encoded data
             cls_ = None
             # for regular mode
             if not self.MLEPConfig["allow_model_confidence"]:
-                cls_=self.MODELS[_name].predict(locally_encoded_data)
+                cls_=self.MODELS[_name]["model"].predict(locally_encoded_data)
             else:
                 if classify_mode == "explicit":
-                    cls_=self.MODELS[_name].predict(locally_encoded_data, mode="explicit", y_label = data.getLabel())
+                    cls_=self.MODELS[_name]["model"].predict(locally_encoded_data, mode="explicit", y_label = data.getLabel())
                 elif classify_mode == "implicit":
-                    cls_=self.MODELS[_name].predict(locally_encoded_data, mode="implicit")
+                    cls_=self.MODELS[_name]["model"].predict(locally_encoded_data, mode="implicit")
                 else:
                     raise ValueError("classify_mode must be one of: 'explicit', 'implicit'. Unrecognized mode %s"%classify_mode)
 
@@ -428,42 +578,39 @@ class MLEPModelDriftAdaptor():
 
         # We need to store the sample in one of:
         # core/edge/gen-men-explicit/implicit
+        # Need memory for each model...store in self.MODELS
+        if self.MLEPConfig["allow_model_drift"]:
+            if classify_mode == "implicit":
+                #set label
+                data.setLabel(classification)
+            dataHasBeenAdded = False
+            for model_name, model_distance in zip(ensembleModelNames, ensembleModelDistance):
+                if model_distance < self.MODELS[model_name]["model"].getDataCharacteristic("delta_low"):
+                    #self.MODELS[model_name]["memoryTracker"].addToMemory("core-mem-"+classify_mode, data)
 
-
-
-
-        # add to scheduled memory if this is explicit data
-        if self.MLEPConfig["allow_update_schedule"]:
-            if classify_mode == "explicit":
-                self.MEMTRACK.addToMemory(memory_name="scheduled", data=data)
-                if error:
-                    self.MEMTRACK.addToMemory(memory_name="scheduled_errors", data=data)
-                # No drift detection necessary
-                # No MLEPUpdate necessary
+                    self.MODELS[model_name]["memoryTracker"].addToMemory("edge-mem-"+classify_mode, data)
+                    dataHasBeenAdded = True
+                    # TODO handle core centroids...
+                elif model_distance > self.MODELS[model_name]["model"].getDataCharacteristic("delta_high"):
+                    pass
+                else:
+                    self.MODELS[model_name]["memoryTracker"].addToMemory("edge-mem-"+classify_mode, data)
+            if not dataHasBeenAdded:
+                self.MEMTRACK.addToMemory("gen-mem-"+classify_mode, data)
+                
 
         # perform explicit drift detection and update (if classift mode is explicit)
         if self.MLEPConfig["allow_explicit_drift"]:
             # send the input appropriate for the drift mode
-            # shuld be updated to be more readble; update so that users can define their own drift tracking method
             if classify_mode == "explicit":
-                # add error -- 
-                self.MEMTRACK.addToMemory(memory_name="explicit_drift", data=data)
-                if error:
-                    self.MEMTRACK.addToMemory(memory_name="explicit_errors", data=data)
-
                 driftDetected = self.EXPLICIT_DRIFT_TRACKER.detect(self.METRICS.get(self.MLEPConfig["drift_metrics"][self.MLEPConfig["explicit_drift_mode"]]))
                 if driftDetected:
                     io_utils.std_flush(self.MLEPConfig["explicit_drift_mode"], "has detected drift at", len(self.METRICS.get("all_errors")), "samples. Resetting")
                     self.EXPLICIT_DRIFT_TRACKER.reset()
+                    self.MLEPModelBasedUpdate()
                     
-                    # perform drift update (big whoo)
-                    # perform update with the correct memory type
-                    if self.MLEPConfig["explicit_update_mode"] == "all":
-                        self.MLEPUpdate(memory_type="explicit_drift")
-                    elif self.MLEPConfig["explicit_update_mode"] == "errors":
-                        self.MLEPUpdate(memory_type="explicit_errors")
-                    else:
-                        raise NotImplementedError()
+
+
                 
 
         # perform implicit/unlabeled drift detection and update. This is performed :
@@ -498,24 +645,11 @@ class MLEPModelDriftAdaptor():
                     raise NotImplementedError()
 
         if self.MLEPConfig["allow_model_confidence"]:
-            # TODO
             for idx,_name in enumerate(ensembleModelNames):
-                # add data to proper memory (core-mem, gen-mem)
-                # add data, if it doesn't fit either, to data-mem (from MEMORY_TRACK)
-                pass
-
-                # check if model is drifting
-                # if so use core-mem and gen-mem to update the model.
-                pass
-                modelDrifting = self.MODELS[_name].isDrifting()
+                modelDrifting = self.MODELS[_name]["model"].isDrifting()
                 if modelDrifting:
                     io_utils.std_flush(_name, "has detected drift at", len(self.METRICS.get("all_errors")), "samples. Resetting")
                     
-            # TODO for this, for now, just output size of data-mem. See if this changes significantly, and use heuristics ?????
-            # TODO Check if there is -- explicit drift -- OR -- enough data in data-mem to update
-            # If so, generate new models on data-mem and add them to the pile
-            # TODO TODO TODO Better way to check --> if more and more unlabeled samples are close to data-mem, then strengthen data-mem. 
-        
         self.saveClassification(classification)
         self.saveEnsemble(ensembleModelNames)
 
@@ -530,14 +664,14 @@ class MLEPModelDriftAdaptor():
 
     def setUpMemories(self,):
         io_utils.std_flush("\tStarted setting up memories at", time_utils.readable_time())
-        import mlep.trackers.MemoryTracker as MemoryTracker
         self.MEMTRACK = MemoryTracker.MemoryTracker()
 
-        if self.MLEPConfig["allow_update_schedule"]:
-            self.MEMTRACK.addNewMemory(memory_name="scheduled",memory_store="memory")
-            self.MEMTRACK.addNewMemory(memory_name="scheduled_errors",memory_store="memory")
-            io_utils.std_flush("\t\tAdded scheduled memory")
+        
+        self.MEMTRACK.addNewMemory(memory_name="gen-mem-explicit",memory_store="memory")
+        self.MEMTRACK.addNewMemory(memory_name="gen-mem-implicit",memory_store="memory")
+        io_utils.std_flush("\t\tAdded General Memory memory")
 
+        """
         if self.MLEPConfig["allow_explicit_drift"]:
             self.MEMTRACK.addNewMemory(memory_name="explicit_drift",memory_store="memory")
             self.MEMTRACK.addNewMemory(memory_name="explicit_errors",memory_store="memory")
@@ -547,7 +681,7 @@ class MLEPModelDriftAdaptor():
             self.MEMTRACK.addNewMemory(memory_name="unlabeled_drift",memory_store="memory")
             self.MEMTRACK.addNewMemory(memory_name="unlabeled_errors",memory_store="memory")
             io_utils.std_flush("\t\tAdded unlabeled drift memory")
-        
+        """
         io_utils.std_flush("\tFinished setting up memories at", time_utils.readable_time())
 
     
