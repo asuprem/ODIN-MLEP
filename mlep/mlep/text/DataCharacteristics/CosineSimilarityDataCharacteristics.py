@@ -54,3 +54,9 @@ class CosineSimilarityDataCharacteristics:
             if(abs(resultTmp[2]) < abs(result[2])): 
                 result = resultTmp 
         return result 
+    
+    def get(self,_key):
+        if _key == "centroid":
+            return self.centroid
+        else:
+            raise NotImplementedError()
