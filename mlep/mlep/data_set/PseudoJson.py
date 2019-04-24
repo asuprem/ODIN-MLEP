@@ -8,8 +8,9 @@ class PseudoJson(mlep.data_set.DataSet.DataSet):
         self.dumps = dumps
         self.raw = loads(data)
         self.data = self.raw[dataKey]
-        if labelKey in self.raw:
-            self.label = self.raw[labelKey]
+        self.labelKey = labelKey
+        if self.labelKey in self.raw:
+            self.label = self.raw[self.labelKey]
         else:
             self.label = None
 
@@ -24,6 +25,10 @@ class PseudoJson(mlep.data_set.DataSet.DataSet):
 
     def serialize(self,):
         return self.dumps(self.raw)
+
+    def setLabel(self,label):
+        self.raw[self.labelKey] = label
+        self.label = label
 
 
     
