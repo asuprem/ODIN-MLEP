@@ -1,18 +1,16 @@
 {
     "config":{
         
-        "allow_explicit_drift": false,
+        "allow_explicit_drift": true,
         "explicit_drift_class":"LabeledDriftDetector",
-        "explicit_drift_mode":"PageHinkley",
+        "explicit_drift_mode":"EDDM",
         "explicit_update_mode":"all",
 
         "allow_update_schedule": false,
         "update_schedule":2592000000,
         "schedule_update_mode":"all",
 
-        "allow_model_drift":false,
-        "allow_model_explicit_drift": false,
-        "allow_model_implicit_drift": false,
+        "allow_model_drift":true,
 
         "allow_model_confidence":false,
         "allow_model_explicit_confidence": false,
