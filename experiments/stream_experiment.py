@@ -45,7 +45,10 @@ def main():
     explicit_count = 0
 
     while streamData.next():
-        classification = MLEPLearner.classify(streamData.getObject(), classify_mode="implicit")
+        if streamData.getLabel() is None:
+            classification = MLEPLearner.classify(streamData.getObject(), classify_mode="implicit")
+        else:
+            classification = MLEPLearner.classify(streamData.getObject(), classify_mode="explicit")
 
 
         if streamData.getLabel() is None:
