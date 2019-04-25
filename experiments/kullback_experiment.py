@@ -62,8 +62,8 @@ def main():
     streamData = StreamLocal.StreamLocal(data_source="./data/realisticStreamComb_2013_feb19.json", data_mode="single", data_set_class=PseudoJsonTweets.PseudoJsonTweets)
     secondary_distribution = OnlineSimilarityDistribution.OnlineSimilarityDistribution(nBins)
     processLength = 0
-    genCount = 0
-    axv = []
+    #genCount = 0
+    #axv = []
     while streamData.next():
         processLength += 1
         # add to memory
