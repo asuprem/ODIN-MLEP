@@ -311,13 +311,14 @@ class MLEPDriftAdaptor():
                 
         io_utils.std_flush("\tFinished setting up encoders at", time_utils.readable_time())
 
-    def shutdown(self):
+    def shutdown(self, deltree=True):
         # save models - because they are all heald in memory??
         # Access the save path
         # pick.dump models to that path
         pass
-        import shutil
-        shutil.rmtree(self.SOURCE_DIR)
+        if deltree:
+            import shutil
+            shutil.rmtree(self.SOURCE_DIR)
         self.closeDBConnection()
 
         
@@ -580,30 +581,8 @@ class MLEPDriftAdaptor():
     # trainData is BatchedLocal
     def setUpInitialModels(self,traindata, models = 'all'):
         """ This is a function for initial training. Separated while working on data model. Will probably be recombined with self.train function later """
-        # for each modelType in modelTypes
-        #   for each encodingType (just 1)
-        #       Create sklearn model using default details
-        #       then train sklearn model using encoded data
-        #       precision, recall, score, model = self.generate(encoder, traindata, model)
-        #       push details to ModelDB
-        #       save model to file using ID as filename.model -- serialized sklearn model
-        
-        
-
-        # First load the Model configurations - identify what models exist
-        
+     
         for pipeline in self.MLEPPipelines:
-            
-            
-            # We make the simplified assumption that all encoders are the same (pretrained w2v). 
-            # So we don't have to handle pipeline families at this point for the distance function (if implemented)
-            # Also, since our models are small-ish, we can make do by hosting models in memory
-            # Production implementation (and going forward), models would be hosted as an API endpoint until "retirement"
-
-            #io_utils.std_flush("Setting up", currentEncoder["name"], "at", time_utils.readable_time())
-            
-            # trainData is a DataModel (in our case, a BatchedLocal)
-            # set up pipeline
             currentPipeline = self.MLEPPipelines[pipeline]
             # trainData is BatchedLocal
             precision, recall, score, pipelineTrained, data_centroid = self.generatePipeline(traindata, currentPipeline)
