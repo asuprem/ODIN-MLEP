@@ -157,9 +157,10 @@ class MLEPModelDriftAdaptor():
                 response = core_kdtree.query(encoded_implicit)
                 # Label matching -- keep 'weakly supervised' correct ones
                 # For each implicit label, compare to nearest explicit. if it matches, keep, else discard
+                io_utils.std_flush("\tObtained distances for implicit memory")
                 supervision = []
                 supervised_implicit_labels = []
-                for _idx in range(response[1].shape):
+                for _idx in range(response[1].shape[0]):
                     # get label of implicit
                     implicit_weaklabel = implicit_labels[_idx]
                     explicit_stronglabel = explicit_labels[response[1][_idx,0]]
@@ -168,8 +169,8 @@ class MLEPModelDriftAdaptor():
                         supervised_implicit_labels.append(implicit_weaklabel)
                 encoded_implicit = encoded_implicit[supervision,:]
                 trainlabels = explicit_labels+supervised_implicit_labels
-
-                io_utils.std_flush("\tObtained distances for implicit memory")
+                io_utils.std_flush("\tWeak supervision -- reduced from %i to %i supervised implicit labels"%(len(implicit_labels), len(supervised_implicit_labels)))
+                
                 scale_fac = ln_e(self.ALPHA)/self.MODELS[model_name]["model"].getDataCharacteristic("delta_high")
                 update_weights = [exp(scale_fac*item) for item in response[0][supervision,0].tolist()]
                 io_utils.std_flush("\tGenerated weights for implicit samples")
@@ -193,9 +194,13 @@ class MLEPModelDriftAdaptor():
             implicit_memory = self.augmentTrainingData(implicit_memory)
 
             explicit_labels = explicit_memory.getLabels()
-            implicit_labels = implicit_memory.getLabels()
-            trainlabels = explicit_labels+implicit_labels
+            try:
+                implicit_labels = implicit_memory.getLabels()
+            except AttributeError:
+                pdb.set_trace()
+
             general_training = {}
+            general_labels={}
             update_weights = {}
             if self.MLEPConfig["reset_memories"]:
                 self.MEMTRACK.clearMemory("gen-mem-explicit")
@@ -206,27 +211,25 @@ class MLEPModelDriftAdaptor():
                 kdtree_gen = KDTree(explicit_encoded, metric='euclidean')
                 response = kdtree_gen.query(implicit_encoded)
                 #scale_fac = ln_e(self.ALPHA)/self.MODELS[model_name]["model"].getDataCharacteristic("delta_high")
-                #No factor for scaling for general memory -- simple exponential weighting
-                # Label matching -- keep 'weakly supervised' correct ones
-                # For each implicit label, compare to nearest explicit. if it matches, keep, else discard
+                io_utils.std_flush("\tObtained distances for implicit memory")
                 supervision = []
                 supervised_implicit_labels = []
-                for _idx in range(response[1].shape):
+                for _idx in range(response[1].shape[0]):
                     # get label of implicit
                     implicit_weaklabel = implicit_labels[_idx]
                     explicit_stronglabel = explicit_labels[response[1][_idx,0]]
                     if implicit_weaklabel == explicit_stronglabel:
                         supervision.append(_idx)
                         supervised_implicit_labels.append(implicit_weaklabel)
-                encoded_implicit = encoded_implicit[supervision,:]
-                trainlabels = explicit_labels+supervised_implicit_labels
+                implicit_encoded = implicit_encoded[supervision,:]
+                io_utils.std_flush("\tWeak supervision -- reduced from %i to %i supervised implicit labels"%(len(implicit_labels), len(supervised_implicit_labels)))
 
                 __update_weights__ = [exp(item) for item in response[0][supervision,0].tolist()]
 
-                
+                general_labels[encoder] = explicit_labels+supervised_implicit_labels
                 general_training[encoder] = vstack((explicit_encoded, implicit_encoded))
                 update_weights[encoder] = [1]*explicit_encoded.shape[0] + __update_weights__
-            self.trainGeneralMemory(general_training, trainlabels, update_weights)
+            self.trainGeneralMemory(general_training, general_labels, update_weights)
         self.ModelTracker.updateModelStore(self.ModelDB)
 
     def trainGeneralMemory(self,traindata, trainlabels, sample_weights=None):
@@ -236,7 +239,7 @@ class MLEPModelDriftAdaptor():
             currentPipeline = self.MLEPPipelines[pipeline] 
             currentEncoder = currentPipeline["sequence"][0]           
             # get the closest items; response[0] --> distance; response[1] --> indices
-            precision, recall, score, pipelineTrained, data_centroid = self.createDensePipeline(traindata[currentEncoder], trainlabels, currentPipeline, sample_weight = sample_weights[currentEncoder])
+            precision, recall, score, pipelineTrained, data_centroid = self.createDensePipeline(traindata[currentEncoder], trainlabels[currentEncoder], currentPipeline, sample_weight = sample_weights[currentEncoder])
             timestamp = time.time()
             modelIdentifier = self.createModelId(timestamp, currentPipeline["name"],score) 
             modelSavePath = "_".join([currentPipeline["name"], modelIdentifier])
