@@ -14,9 +14,8 @@ class OnlineSimilarityDistribution:
         return i
 
     def get(self,data):
-        self.max_len+=1.0
         if data >= 1.0:
-            return self.dist[1.0]/self.max_len
+            return self.dist[1]/self.max_len
         else:
             return self.dist[self._findIndex(data)]/self.max_len
 
