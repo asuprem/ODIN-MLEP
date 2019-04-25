@@ -195,6 +195,30 @@
             "valid":false
         }, 
 
+        "w2v5klogreg":{
+            "name": "w2v5klogreg",
+            "sequence": ["w2v-generic-5000", "logreg"],
+            "type":"binary",
+            "encoder": "w2v-generic-5000",
+            "valid":false
+        }, 
+
+        "w2v5kdecisiontree":{
+            "name": "w2v5kdecisiontree",
+            "sequence": ["w2v-generic-5000", "decisiontree"],
+            "type":"binary",
+            "encoder": "w2v-generic-5000",
+            "valid":false
+        }, 
+
+        "w2v5kkeras":{
+            "name": "w2v5kkeras",
+            "sequence": ["w2v-generic-5000", "kerasSimple"],
+            "type":"binary",
+            "encoder": "w2v-generic-5000",
+            "valid":false
+        }, 
+
 
         "kerasSimpleP":{
             "name": "kerasSimpleP",
@@ -207,6 +231,37 @@
 
 
 
+        "w2v10ksgd":{
+            "name": "w2v10ksgd",
+            "sequence": ["w2v-generic-10000", "sgd"],
+            "type":"binary",
+            "encoder": "w2v-generic-10000",
+            "valid":false
+        }, 
+
+        "w2v10klogreg":{
+            "name": "w2v10klogreg",
+            "sequence": ["w2v-generic-10000", "logreg"],
+            "type":"binary",
+            "encoder": "w2v-generic-10000",
+            "valid":false
+        }, 
+
+        "w2v10kdecisiontree":{
+            "name": "w2v10kdecisiontree",
+            "sequence": ["w2v-generic-10000", "decisiontree"],
+            "type":"binary",
+            "encoder": "w2v-generic-10000",
+            "valid":false
+        }, 
+
+        "w2v10kkeras":{
+            "name": "w2v10kkeras",
+            "sequence": ["w2v-generic-10000", "kerasSimple"],
+            "type":"binary",
+            "encoder": "w2v-generic-10000",
+            "valid":false
+        }, 
 
 
 
