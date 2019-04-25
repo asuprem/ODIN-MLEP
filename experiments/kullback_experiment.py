@@ -11,7 +11,7 @@ import mlep.data_encoder.w2vGoogleNews as w2vGoogleNews
 import mlep.trackers.MemoryTracker as MemoryTracker
 
 import mlep.drift_detector.UnlabeledDriftDetector.KullbackLeibler as KullbackLeibler
-import mlep.text.OnlineSimilarityDistribution as OnlineSimilarityDistribution
+import mlep.text.DataCharacteristics.OnlineSimilarityDistribution as OnlineSimilarityDistribution
 
 import warnings
 # warnings.filterwarnings(action="ignore", category=FutureWarning)
@@ -63,6 +63,7 @@ def main():
     secondary_distribution = OnlineSimilarityDistribution.OnlineSimilarityDistribution(nBins)
     processLength = 0
     genCount = 0
+    axv = []
     while streamData.next():
         processLength += 1
         # add to memory
@@ -77,10 +78,10 @@ def main():
         #if streamData.streamLength()>3000:
         #    pdb.set_trace()
         #raw_vals.append((raw_vals[-1]+raw_val)/streamData.streamLength())
-        raw_vals.append(sum(windowed_raw)/dqlen)
+        raw_vals.append(raw_val)
         #raw_vals.append(raw_val)
         
-        
+        """
         driftWindowTracker.addToMemory(memory_name="kullback", data=streamData.getObject())
         if processLength>dqlen:
             if raw_vals[-1] > .02:
@@ -96,6 +97,7 @@ def main():
                 kullback.reset()
                 secondary_distribution = OnlineSimilarityDistribution.OnlineSimilarityDistribution(nBins)
                 processLength = 0
+        """
             
         """
         driftWindowTracker.addToMemory(memory_name="kullback", data=streamData.getObject())
@@ -110,7 +112,7 @@ def main():
             kullback.reset()
             secondary_distribution = OnlineSimilarityDistribution.OnlineSimilarityDistribution(nBins)
         """ 
-        
+    pdb.set_trace()
         
 
     
