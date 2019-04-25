@@ -206,9 +206,9 @@ class BaseLearningModel:
         
         LearningModelToClone -- [LearningModel] The model to clone
         """
-        self._model = LearningModelToClone.clonedModel()
+        self._model = LearningModelToClone._clonedModel()
 
-    def clonedModel(self):
+    def _clonedModel(self):
         """Return a clone of the current model. This and clone work together
         
         """
