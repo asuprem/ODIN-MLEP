@@ -40,24 +40,6 @@ class KullbackLeibler(UnlabeledDriftDetector.UnlabeledDriftDetector):
                 if q_val == 0:
                     q_val = 0.001
                 r_val += q_val * self.log(q_val/p_val)
-        
-        """
-        p_val = self.p_distribution.get(data)
-        q_val = self.q_distribution.get(data)
-        #handle equality and 0 all in one
-        if p_val == q_val:
-            self.raw_val == 0
-        else:
-            if p_val == 0:
-                # TODO Fix with correct davlue
-                p_val = 0.001
-            if q_val == 0:
-                q_val = 0.001
-
-            #a_raw_val = p_val * self.log(p_val/q_val)
-            b_raw_val = p_val * self.log(q_val/p_val)
-            self.raw_val = b_raw_val
-        """
         self.raw_val = r_val
         return self.raw_val
     
