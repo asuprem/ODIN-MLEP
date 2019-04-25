@@ -11,6 +11,7 @@
         "schedule_update_mode":"all",
 
         "allow_model_drift":true,
+        "reset_memories":true,
 
         "allow_model_confidence":false,
         "allow_model_explicit_confidence": false,
@@ -25,7 +26,7 @@
         "weight_method":"performance",
         "select_method":"historical",
         "filter_select":"nearest",
-        "kval": 5,
+        "kval": 10,
         "update_prune":"C",
         "models_to_update":"recent",
         
@@ -60,6 +61,11 @@
             "name": "randforest",
             "desc": "Sklearn version of Random Forest",
             "scriptName": "sklearnRandomForest"
+        },
+        "kerasSimple" :{
+            "name": "kerasSimple",
+            "desc": "Simple keras",
+            "scriptName": "kerasSimple"
         }
     },
 
@@ -138,7 +144,7 @@
             "sequence": ["w2v-main", "sgd"],
             "type":"binary",
             "encoder": "w2v-main",
-            "valid":true
+            "valid":false
         },
 
         "pipelineB":{
@@ -190,7 +196,13 @@
         }, 
 
 
-
+        "kerasSimpleP":{
+            "name": "kerasSimpleP",
+            "sequence": ["w2v-main", "kerasSimple"],
+            "type":"binary",
+            "encoder": "w2v-main",
+            "valid":true
+        },
 
 
 
