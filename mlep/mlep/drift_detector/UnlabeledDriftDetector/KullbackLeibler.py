@@ -26,6 +26,22 @@ class KullbackLeibler(UnlabeledDriftDetector.UnlabeledDriftDetector):
         returns -- is there drift (T/F)
         """
         self.q_distribution = distribution_callback
+        r_val = 0.0
+        for val in self.p_distribution.dist_keys:
+            p_val = self.p_distribution.get(val)
+            q_val = self.q_distribution.get(val)
+
+            if p_val == q_val:
+                r_val += 0.0
+            else:
+                if p_val == 0:
+                    # TODO Fix with correct davlue
+                    p_val = 0.001
+                if q_val == 0:
+                    q_val = 0.001
+                r_val += q_val * self.log(q_val/p_val)
+        
+        """
         p_val = self.p_distribution.get(data)
         q_val = self.q_distribution.get(data)
         #handle equality and 0 all in one
@@ -36,11 +52,12 @@ class KullbackLeibler(UnlabeledDriftDetector.UnlabeledDriftDetector):
                 # TODO Fix with correct davlue
                 p_val = 0.001
             if q_val == 0:
-                q_val == 0.001
+                q_val = 0.001
 
-            a_raw_val = p_val * self.log(p_val/q_val)
-            b_raw_val = q_val * self.log(q_val/p_val)
+            #a_raw_val = p_val * self.log(p_val/q_val)
+            b_raw_val = p_val * self.log(q_val/p_val)
             self.raw_val = b_raw_val
-        
+        """
+        self.raw_val = r_val
         return self.raw_val
     
