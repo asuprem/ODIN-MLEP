@@ -1,4 +1,4 @@
-import os, time, sys
+import os, time, sys, random
 import pdb
 from mlep.utils import io_utils, sqlite_utils, time_utils
 from math import log as ln_e, exp
@@ -36,7 +36,7 @@ class MLEPModelDriftAdaptor():
     def setUpCoreVars(self,):
         self.KNOWN_EXPLICIT_DRIFT_CLASSES = ["LabeledDriftDetector"]
         self.KNOWN_UNLABELED_DRIFT_CLASSES = ["UnlabeledDriftDetector"]
-        self.ALPHA = 0.6
+        self.ALPHA = 0.5
         # Setting of 'hosted' models + data cetroids
         self.MODELS = {}
         # Augmenter
@@ -130,24 +130,48 @@ class MLEPModelDriftAdaptor():
             # encode the explicit data ...            
             if self.MODELS[model_name]["memoryTracker"].memorySize("edge-mem-explicit") > 0:
                 io_utils.std_flush("Performing update for %s"%model_name)
+                
                 explicit_memory = self.MODELS[model_name]["memoryTracker"].transferMemory("edge-mem-explicit")
+                explicit_memory.load_by_class()
+                explicit_memory = self.augmentTrainingData(explicit_memory)
                 encoded_explicit = self.ENCODERS[self.MODELS[model_name]["encoder"]].batchEncode(explicit_memory.getData())
                 io_utils.std_flush("\tObtained %i explicit edge labels"%encoded_explicit.shape[0])
+
                 core_kdtree = KDTree(encoded_explicit, metric='euclidean')
                 io_utils.std_flush("\tGenerated KD-Tree")
+
                 implicit_memory = self.MODELS[model_name]["memoryTracker"].transferMemory("edge-mem-implicit")
+                implicit_memory.load_by_class()
+                implicit_memory = self.augmentTrainingData(implicit_memory)
                 encoded_implicit = self.ENCODERS[self.MODELS[model_name]["encoder"]].batchEncode(implicit_memory.getData())
                 io_utils.std_flush("\tObtained %i implicit edge labels"%encoded_implicit.shape[0])
+                
+                if self.MLEPConfig["reset_memories"]:
+                    self.MODELS[model_name]["memoryTracker"].clearMemory("edge-mem-explicit")
+                    self.MODELS[model_name]["memoryTracker"].clearMemory("edge-mem-implicit")
 
                 explicit_labels = explicit_memory.getLabels()
                 implicit_labels = implicit_memory.getLabels()
-                trainlabels = explicit_labels+implicit_labels
-
+                
                 # get the closest items; response[0] --> distance; response[1] --> indices
                 response = core_kdtree.query(encoded_implicit)
+                # Label matching -- keep 'weakly supervised' correct ones
+                # For each implicit label, compare to nearest explicit. if it matches, keep, else discard
+                supervision = []
+                supervised_implicit_labels = []
+                for _idx in range(response[1].shape):
+                    # get label of implicit
+                    implicit_weaklabel = implicit_labels[_idx]
+                    explicit_stronglabel = explicit_labels[response[1][_idx,0]]
+                    if implicit_weaklabel == explicit_stronglabel:
+                        supervision.append(_idx)
+                        supervised_implicit_labels.append(implicit_weaklabel)
+                encoded_implicit = encoded_implicit[supervision,:]
+                trainlabels = explicit_labels+supervised_implicit_labels
+
                 io_utils.std_flush("\tObtained distances for implicit memory")
                 scale_fac = ln_e(self.ALPHA)/self.MODELS[model_name]["model"].getDataCharacteristic("delta_high")
-                update_weights = [exp(scale_fac*item) for item in response[0][:,0].tolist()]
+                update_weights = [exp(scale_fac*item) for item in response[0][supervision,0].tolist()]
                 io_utils.std_flush("\tGenerated weights for implicit samples")
                 # now we have explicit memory with weights (1) and impllicit memory, also with weights (update_weights)
                 # time to perform an update...using encoded_explicit, encoded_implicit, and weights...
@@ -159,14 +183,23 @@ class MLEPModelDriftAdaptor():
         # Perform generate using explicit data...
         if self.MEMTRACK.memorySize("gen-mem-explicit") > 0:
             explicit_memory = self.MEMTRACK.transferMemory("gen-mem-explicit")
+            explicit_memory.load_by_class()
             io_utils.std_flush("\tObtained %i explicit general labels"%self.MEMTRACK.memorySize("gen-mem-explicit"))
             implicit_memory = self.MEMTRACK.transferMemory("gen-mem-implicit")
+            implicit_memory.load_by_class()
             io_utils.std_flush("\tObtained %i implicit general labels"%self.MEMTRACK.memorySize("gen-mem-implicit"))
+            
+            explicit_memory = self.augmentTrainingData(explicit_memory)
+            implicit_memory = self.augmentTrainingData(implicit_memory)
+
             explicit_labels = explicit_memory.getLabels()
             implicit_labels = implicit_memory.getLabels()
             trainlabels = explicit_labels+implicit_labels
             general_training = {}
             update_weights = {}
+            if self.MLEPConfig["reset_memories"]:
+                self.MEMTRACK.clearMemory("gen-mem-explicit")
+                self.MEMTRACK.clearMemory("gen-mem-implicit")
             for encoder in self.ENCODERS:
                 explicit_encoded = self.ENCODERS[encoder].batchEncode(explicit_memory.getData())
                 implicit_encoded = self.ENCODERS[encoder].batchEncode(implicit_memory.getData())
@@ -174,7 +207,23 @@ class MLEPModelDriftAdaptor():
                 response = kdtree_gen.query(implicit_encoded)
                 #scale_fac = ln_e(self.ALPHA)/self.MODELS[model_name]["model"].getDataCharacteristic("delta_high")
                 #No factor for scaling for general memory -- simple exponential weighting
-                __update_weights__ = [exp(item) for item in response[0][:,0].tolist()]
+                # Label matching -- keep 'weakly supervised' correct ones
+                # For each implicit label, compare to nearest explicit. if it matches, keep, else discard
+                supervision = []
+                supervised_implicit_labels = []
+                for _idx in range(response[1].shape):
+                    # get label of implicit
+                    implicit_weaklabel = implicit_labels[_idx]
+                    explicit_stronglabel = explicit_labels[response[1][_idx,0]]
+                    if implicit_weaklabel == explicit_stronglabel:
+                        supervision.append(_idx)
+                        supervised_implicit_labels.append(implicit_weaklabel)
+                encoded_implicit = encoded_implicit[supervision,:]
+                trainlabels = explicit_labels+supervised_implicit_labels
+
+                __update_weights__ = [exp(item) for item in response[0][supervision,0].tolist()]
+
+                
                 general_training[encoder] = vstack((explicit_encoded, implicit_encoded))
                 update_weights[encoder] = [1]*explicit_encoded.shape[0] + __update_weights__
             self.trainGeneralMemory(general_training, trainlabels, update_weights)
@@ -241,35 +290,37 @@ class MLEPModelDriftAdaptor():
         # Now we update model store.
         self.ModelTracker.updateModelStore(self.ModelDB)
 
+    def augmentTrainingData(self,trainingDataModel):
+        negDataLength = trainingDataModel.class_size(0)
+        posDataLength = trainingDataModel.class_size(1)
+        if negDataLength < 0.8*posDataLength:
+            io_utils.std_flush("Too few negative results. Adding more")
+            if self.AUGMENT.class_size(0) < posDataLength:
+                # We'll need a random sampled for self.negatives BatchedLoad
+                trainingDataModel.augment_by_class(self.AUGMENT.getObjectsByClass(0), 0)
+            else:
+                trainingDataModel.augment_by_class(random.sample(self.AUGMENT.getObjectsByClass(0), posDataLength-negDataLength), 0)
+        elif negDataLength > 1.2 *posDataLength:
+            # Too many negative data; we'll prune some
+            io_utils.std_flush("Too many  negative samples. Pruning")
+            trainingDataModel.prune_by_class(0,negDataLength-posDataLength)
+            # TODO
+        else:
+            # Just right
+            io_utils.std_flush("No augmentation necessary")
+        # return combination of all classes
+        return trainingDataModel
+
     def getTrainingData(self, memory_type="scheduled"):
         """ Get the data in self.SCHEDULED_DATA_FILE """
         # perform augmentation for the binary case if there is not enough of each type; enriching with existing negatives
-        import random
         scheduledTrainingData = None
         scheduledTrainingData = self.MEMTRACK.transferMemory(memory_name=memory_type)
         self.MEMTRACK.clearMemory(memory_name=memory_type)
         scheduledTrainingData.load_by_class()
 
         if self.MEMTRACK.getClassifyMode() == "binary":
-            negDataLength = scheduledTrainingData.class_size(0)
-            posDataLength = scheduledTrainingData.class_size(1)
-            if negDataLength < 0.8*posDataLength:
-                io_utils.std_flush("Too few negative results. Adding more")
-                if self.AUGMENT.class_size(0) < posDataLength:
-                    # We'll need a random sampled for self.negatives BatchedLoad
-                    scheduledTrainingData.augment_by_class(self.AUGMENT.getObjectsByClass(0), 0)
-                else:
-                    scheduledTrainingData.augment_by_class(random.sample(self.AUGMENT.getObjectsByClass(0), posDataLength-negDataLength), 0)
-            elif negDataLength > 1.2 *posDataLength:
-                # Too many negative data; we'll prune some
-                io_utils.std_flush("Too many  negative samples. Pruning")
-                scheduledTrainingData.prune_by_class(0,negDataLength-posDataLength)
-                # TODO
-            else:
-                # Just right
-                io_utils.std_flush("No augmentation necessary")
-            # return combination of all classes
-            return scheduledTrainingData
+            return self.augmentTrainingData(scheduledTrainingData)
         else:
             raise NotImplementedError()
 
@@ -431,9 +482,9 @@ class MLEPModelDriftAdaptor():
             self.MODELS[_name]["model"] = _model
             # Add memories
             self.MODELS[_name]["memoryTracker"] = MemoryTracker.MemoryTracker()
-            #self.MODELS[_name]["memoryTracker"].addNewMemory(memory_name="core-mem-explicit",memory_store='memory')
+            self.MODELS[_name]["memoryTracker"].addNewMemory(memory_name="core-mem-explicit",memory_store='memory')
             self.MODELS[_name]["memoryTracker"].addNewMemory(memory_name="edge-mem-explicit",memory_store='memory')
-            #self.MODELS[_name]["memoryTracker"].addNewMemory(memory_name="core-mem-implicit",memory_store='memory')
+            self.MODELS[_name]["memoryTracker"].addNewMemory(memory_name="core-mem-implicit",memory_store='memory')
             self.MODELS[_name]["memoryTracker"].addNewMemory(memory_name="edge-mem-implicit",memory_store='memory')
             self.MODELS[_name]["encoder"] = _encoder
 
@@ -475,7 +526,7 @@ class MLEPModelDriftAdaptor():
                 kClosestPerEncoder[_encoder].sort(key=lambda tup:tup[0])
                 # Truncate to top-k
                 kClosestPerEncoder[_encoder] = kClosestPerEncoder[_encoder][:k_val]
-            # 4. Put them all together and sort on performance; distance weighted performance
+            # 4. Put them all together and sort on performance; distance weighted performance (or sge is actually better...)
             kClosest = []
             for _encoder in kClosestPerEncoder:
                 kClosest+=kClosestPerEncoder[_encoder]
