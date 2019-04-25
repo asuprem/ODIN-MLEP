@@ -49,8 +49,6 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
             for _class in classes:
                 self.class_data[_class] = []
                 self.class_statistics[_class] = 0
-            
-
             self.data_mode = data_mode
             self.data_source = None
             self.data_set_class = data_set_class
@@ -89,7 +87,13 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
                         self.class_data[self.data[-1].getLabel()].append(self.data[-1])
                         self.class_statistics[self.data[-1].getLabel()] += 1
             elif self.data_location == "memory":
+                self.class_data={}
+                self.class_statistics={}
+                for _class in self.classes:
+                    self.class_data[_class] = []
+                    self.class_statistics[_class] = 0
                 for entry in self.data:
+                    # clear first
                     self.class_data[entry.getLabel()].append(entry)
                     self.class_statistics[entry.getLabel()] += 1
             else:
