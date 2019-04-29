@@ -7,7 +7,6 @@ import sqlite3
 from sklearn.neighbors import KDTree
 import mlep.text.DataCharacteristics.CosineSimilarityDataCharacteristics as CosineSimilarityDataCharacteristics
 import mlep.text.DataCharacteristics.L2NormDataCharacteristics as L2NormDataCharacteristics
-import mlep.text.DataCharacteristics.OnlineSimilarityDistribution as OnlineSimilarityDistribution
 import mlep.trackers.MemoryTracker as MemoryTracker
 
 class MLEPModelDriftAdaptor():
@@ -126,9 +125,7 @@ class MLEPModelDriftAdaptor():
                 encoded_explicit = self.ENCODERS[self.MODELS[model_name]["encoder"]].batchEncode(explicit_memory.getData())
                 io_utils.std_flush("\tObtained %i explicit edge labels"%encoded_explicit.shape[0])
 
-                core_kdtree = KDTree(encoded_explicit, metric='euclidean')
-                io_utils.std_flush("\tGenerated KD-Tree")
-
+                
                 implicit_memory = self.MODELS[model_name]["memoryTracker"].transferMemory("edge-mem-implicit")
                 implicit_memory.load_by_class()
                 implicit_memory = self.augmentTrainingData(implicit_memory)
@@ -141,31 +138,39 @@ class MLEPModelDriftAdaptor():
 
                 explicit_labels = explicit_memory.getLabels()
                 implicit_labels = implicit_memory.getLabels()
+                TrainingData, trainlabels, update_weights = None, None, None
+                if len(encoded_implicit) > 0:
+                    core_kdtree = KDTree(encoded_explicit, metric='euclidean')
+                    io_utils.std_flush("\tGenerated KD-Tree")
+                    # get the closest items; response[0] --> distance; response[1] --> indices
+                    response = core_kdtree.query(encoded_implicit)
+                    io_utils.std_flush("\tObtained distances for implicit memory")
+                    # Label matching -- keep 'weakly supervised' correct ones. For each implicit label, compare to nearest explicit. if it matches, keep
+                    supervision = []
+                    supervised_implicit_labels = []
+                    for _idx in range(response[1].shape[0]):
+                        # get label of implicit
+                        implicit_weaklabel = implicit_labels[_idx]
+                        explicit_stronglabel = explicit_labels[response[1][_idx,0]]
+                        if implicit_weaklabel == explicit_stronglabel:
+                            supervision.append(_idx)
+                            supervised_implicit_labels.append(implicit_weaklabel)
+                    encoded_implicit = encoded_implicit[supervision,:]
+                    trainlabels = explicit_labels+supervised_implicit_labels
+                    io_utils.std_flush("\tWeak supervision -- reduced from %i to %i supervised implicit labels"%(len(implicit_labels), len(supervised_implicit_labels)))
+                    
+                    scale_fac = ln_e(self.ALPHA)/self.MODELS[model_name]["model"].getDataCharacteristic("delta_high")
+                    update_weights = [exp(scale_fac*item) for item in response[0][supervision,0].tolist()]
+                    io_utils.std_flush("\tGenerated weights for implicit samples")
+                    # now we have explicit memory with weights (1) and impllicit memory, also with weights (update_weights)
+                    # time to perform an update...using encoded_explicit, encoded_implicit, and weights...
+                    TrainingData = vstack((encoded_explicit, encoded_implicit))
+                    update_weights = [1]*encoded_explicit.shape[0] + update_weights
+                else:
+                    TrainingData = encoded_explicit
+                    trainlabels = explicit_labels
+                    update_weights = [1]*encoded_explicit.shape[0]
                 
-                # get the closest items; response[0] --> distance; response[1] --> indices
-                response = core_kdtree.query(encoded_implicit)
-                # Label matching -- keep 'weakly supervised' correct ones. For each implicit label, compare to nearest explicit. if it matches, keep
-                io_utils.std_flush("\tObtained distances for implicit memory")
-                supervision = []
-                supervised_implicit_labels = []
-                for _idx in range(response[1].shape[0]):
-                    # get label of implicit
-                    implicit_weaklabel = implicit_labels[_idx]
-                    explicit_stronglabel = explicit_labels[response[1][_idx,0]]
-                    if implicit_weaklabel == explicit_stronglabel:
-                        supervision.append(_idx)
-                        supervised_implicit_labels.append(implicit_weaklabel)
-                encoded_implicit = encoded_implicit[supervision,:]
-                trainlabels = explicit_labels+supervised_implicit_labels
-                io_utils.std_flush("\tWeak supervision -- reduced from %i to %i supervised implicit labels"%(len(implicit_labels), len(supervised_implicit_labels)))
-                
-                scale_fac = ln_e(self.ALPHA)/self.MODELS[model_name]["model"].getDataCharacteristic("delta_high")
-                update_weights = [exp(scale_fac*item) for item in response[0][supervision,0].tolist()]
-                io_utils.std_flush("\tGenerated weights for implicit samples")
-                # now we have explicit memory with weights (1) and impllicit memory, also with weights (update_weights)
-                # time to perform an update...using encoded_explicit, encoded_implicit, and weights...
-                TrainingData = vstack((encoded_explicit, encoded_implicit))
-                update_weights = [1]*encoded_explicit.shape[0] + update_weights
                 self.updateSingle(TrainingData, trainlabels, model_name, update_weights)
                 self.ModelTracker.updateModelStore(self.ModelDB)
 
@@ -196,27 +201,33 @@ class MLEPModelDriftAdaptor():
             for encoder in self.ENCODERS:
                 explicit_encoded = self.ENCODERS[encoder].batchEncode(explicit_memory.getData())
                 implicit_encoded = self.ENCODERS[encoder].batchEncode(implicit_memory.getData())
-                kdtree_gen = KDTree(explicit_encoded, metric='euclidean')
-                response = kdtree_gen.query(implicit_encoded)
-                #scale_fac = ln_e(self.ALPHA)/self.MODELS[model_name]["model"].getDataCharacteristic("delta_high")
-                io_utils.std_flush("\tObtained distances for implicit memory")
-                supervision = []
-                supervised_implicit_labels = []
-                for _idx in range(response[1].shape[0]):
-                    # get label of implicit
-                    implicit_weaklabel = implicit_labels[_idx]
-                    explicit_stronglabel = explicit_labels[response[1][_idx,0]]
-                    if implicit_weaklabel == explicit_stronglabel:
-                        supervision.append(_idx)
-                        supervised_implicit_labels.append(implicit_weaklabel)
-                implicit_encoded = implicit_encoded[supervision,:]
-                io_utils.std_flush("\tWeak supervision -- reduced from %i to %i supervised implicit labels"%(len(implicit_labels), len(supervised_implicit_labels)))
+                
+                if len(implicit_encoded) > 0:
+                    kdtree_gen = KDTree(explicit_encoded, metric='euclidean')
+                    response = kdtree_gen.query(implicit_encoded)
+                    #scale_fac = ln_e(self.ALPHA)/self.MODELS[model_name]["model"].getDataCharacteristic("delta_high")
+                    io_utils.std_flush("\tObtained distances for implicit memory")
+                    supervision = []
+                    supervised_implicit_labels = []
+                    for _idx in range(response[1].shape[0]):
+                        # get label of implicit
+                        implicit_weaklabel = implicit_labels[_idx]
+                        explicit_stronglabel = explicit_labels[response[1][_idx,0]]
+                        if implicit_weaklabel == explicit_stronglabel:
+                            supervision.append(_idx)
+                            supervised_implicit_labels.append(implicit_weaklabel)
+                    implicit_encoded = implicit_encoded[supervision,:]
+                    io_utils.std_flush("\tWeak supervision -- reduced from %i to %i supervised implicit labels"%(len(implicit_labels), len(supervised_implicit_labels)))
 
-                __update_weights__ = [exp(item) for item in response[0][supervision,0].tolist()]
+                    __update_weights__ = [exp(item) for item in response[0][supervision,0].tolist()]
 
-                general_labels[encoder] = explicit_labels+supervised_implicit_labels
-                general_training[encoder] = vstack((explicit_encoded, implicit_encoded))
-                update_weights[encoder] = [1]*explicit_encoded.shape[0] + __update_weights__
+                    general_labels[encoder] = explicit_labels+supervised_implicit_labels
+                    general_training[encoder] = vstack((explicit_encoded, implicit_encoded))
+                    update_weights[encoder] = [1]*explicit_encoded.shape[0] + __update_weights__
+                else:
+                    general_labels[encoder] = explicit_labels
+                    general_training[encoder] = explicit_encoded
+                    update_weights[encoder] = [1]*explicit_encoded.shape[0]
             self.trainGeneralMemory(general_training, general_labels, update_weights)
         self.ModelTracker.updateModelStore(self.ModelDB)
 
@@ -342,8 +353,8 @@ class MLEPModelDriftAdaptor():
             precision, recall, score = model.update_and_test(data, trainlabels, sample_weight=sample_weight)
 
         # Store model's data characteristics
-        #modelCharacteristics = CosineSimilarityDataCharacteristics.CosineSimilarityDataCharacteristics(nBins=40, alpha = 0.6)
-        modelCharacteristics = L2NormDataCharacteristics.L2NormDataCharacteristics(nBins=40, alpha = self.ALPHA)
+        modelCharacteristics = CosineSimilarityDataCharacteristics.CosineSimilarityDataCharacteristics(nBins=40, alpha = self.ALPHA)
+        #modelCharacteristics = L2NormDataCharacteristics.L2NormDataCharacteristics(nBins=40, alpha = self.ALPHA)
         modelCharacteristics.buildDistribution(centroid,data)
         model.addDataCharacteristics(modelCharacteristics)
 
