@@ -19,7 +19,7 @@ def main():
     mlepConfig = io_utils.load_json("./MLEPServer.json")
 
     # update as per experiment requires
-    mlepConfig["config"]["weight_method"] = "performance"
+    mlepConfig["config"]["weight_method"] = "unweighted"
     mlepConfig["config"]["select_method"] = "recent"
     mlepConfig["config"]["filter_select"] = "nearest"
 
