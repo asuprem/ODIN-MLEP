@@ -66,6 +66,6 @@ class CosineSimilarityDistribution:
 
         """
         for _row in data:
-            self.update(data)
+            self.update(_row)
 
         

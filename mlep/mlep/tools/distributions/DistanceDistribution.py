@@ -34,7 +34,6 @@ class DistanceDistribution:
 
             Note: _findIndex returning a 0 means the data item is below the minimum in the binning. _findIndex returning a value of nBins+1 means data item is greater than the max of binning range
         """
-
         i = bisect.bisect(self.dist_keys, data)
         return i
 
@@ -69,6 +68,6 @@ class DistanceDistribution:
 
         """
         for _row in data:
-            self.update(data)
+            self.update(_row)
 
         
