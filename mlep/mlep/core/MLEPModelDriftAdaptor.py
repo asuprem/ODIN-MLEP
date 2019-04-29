@@ -86,25 +86,16 @@ class MLEPModelDriftAdaptor():
         self.config = config_dict
         if self.config["config"]["filter_select"] != "nearest":
             raise ValueError("MLEPModelDriftAdaptor requires nearest for filter_select")
-        self.MLEPConfig = self.config["config"]
-        self.MLEPModels = self.config["models"]
-        self.MLEPPipelines = self.getValidPipelines()
-        self.MLEPEncoders = self.getValidEncoders()
+        self.MLEPConfig = self.config["config"]; self.MLEPModels = self.config["models"]; self.MLEPPipelines = self.getValidPipelines(); self.MLEPEncoders = self.getValidEncoders()
         io_utils.std_flush("\tFinished loading JSON configuration file at", time_utils.readable_time())
-
 
     def updateTime(self,timerVal):
         """ Manually updating time for experimental evaluation """
         self.overallTimer = timerVal
 
-
-
     def setUpEncoders(self):
         """Set up built-in encoders (Google News w2v)."""
-
         io_utils.std_flush("\tStarted setting up encoders at", time_utils.readable_time())
-
-        
         self.ENCODERS = {}
         for _ , encoder_config in self.MLEPEncoders.items():
             io_utils.std_flush("\t\tSetting up encoder", encoder_config["name"], "at", time_utils.readable_time())
@@ -118,10 +109,8 @@ class MLEPModelDriftAdaptor():
             # Value Error is for joblib load -- need a message to convey as such
             except (IOError, ValueError) as e:
                 io_utils.std_flush("Encoder load failed with error:", e, ". Attempting fix.")
-                self.ENCODERS[encoder_config["name"]].failCondition(
-                        **encoder_config["fail-args"])
-                self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])
-                
+                self.ENCODERS[encoder_config["name"]].failCondition(**encoder_config["fail-args"])
+                self.ENCODERS[encoder_config["name"]].setup(**encoder_config["args"])                
         io_utils.std_flush("\tFinished setting up encoders at", time_utils.readable_time())    
 
     def MLEPModelBasedUpdate(self):
@@ -155,8 +144,7 @@ class MLEPModelDriftAdaptor():
                 
                 # get the closest items; response[0] --> distance; response[1] --> indices
                 response = core_kdtree.query(encoded_implicit)
-                # Label matching -- keep 'weakly supervised' correct ones
-                # For each implicit label, compare to nearest explicit. if it matches, keep, else discard
+                # Label matching -- keep 'weakly supervised' correct ones. For each implicit label, compare to nearest explicit. if it matches, keep
                 io_utils.std_flush("\tObtained distances for implicit memory")
                 supervision = []
                 supervised_implicit_labels = []
@@ -334,12 +322,10 @@ class MLEPModelDriftAdaptor():
         """
         # Data setup
         encoderName = pipeline["sequence"][0]
-
         centroid = self.ENCODERS[encoderName].getCentroid(data)
 
         # Model setup
         pipelineModel = pipeline["sequence"][1]
-
         pipelineModelName = self.MLEPModels[pipelineModel]["scriptName"]
         pipelineModelModule = __import__("mlep.learning_model.%s"%pipelineModelName, fromlist=[pipelineModelName])
         pipelineModelClass = getattr(pipelineModelModule,pipelineModelName)
@@ -349,7 +335,6 @@ class MLEPModelDriftAdaptor():
         precision, recall, score = None, None, None
         if source is None:
             # Generate
-            pass
             precision, recall, score = model.fit_and_test(data, trainlabels, sample_weight=sample_weight)
         else:
             # Update
@@ -571,8 +556,7 @@ class MLEPModelDriftAdaptor():
         # self.MLEPConfig["filter_select"] == "nearest":
         ensembleModelNames, ensembleModelPerformance, ensembleModelDistance = self.getTopKNearestModels(ensembleModelNames, data)
 
-        # Given ensembleModelNames, use all of them as part of ensemble
-        # Run the sqlite query to get model details
+        # Given ensembleModelNames, use all of them as part of ensemble. Run the sqlite query to get model details
         modelDetails = self.ModelDB.getModelDetails(ensembleModelNames)
         if self.MLEPConfig["weight_method"] == "performance":
             if ensembleModelPerformance is not None:
@@ -639,6 +623,7 @@ class MLEPModelDriftAdaptor():
                 data.setLabel(classification)
             dataHasBeenAdded = False
             for model_name, model_distance in zip(ensembleModelNames, ensembleModelDistance):
+
                 if model_distance < self.MODELS[model_name]["model"].getDataCharacteristic("delta_low"):
                     #self.MODELS[model_name]["memoryTracker"].addToMemory("core-mem-"+classify_mode, data)
 
@@ -662,6 +647,29 @@ class MLEPModelDriftAdaptor():
                     io_utils.std_flush(self.MLEPConfig["explicit_drift_mode"], "has detected drift at", len(self.METRICS.get("all_errors")), "samples. Resetting")
                     self.EXPLICIT_DRIFT_TRACKER.reset()
                     self.MLEPModelBasedUpdate()
+        # TODO add method to perfoorm kullback leibler divergence ... so need live normalization for that...
+        # perform implicit drift tracking as well...
+        
+        # get kullback leibler divergence distribution of initial training data...
+        # For each element, update the live distribution (dumb update -- don;t update all params)
+        # perform kullback leibler
+        # if drift is detected, perform a modelBasedUpdate
+        # reset kullback leibler
+        # use the kullback leibler memory to create a new distribution from the memory
+        # and continue...
+        # DON'T, for the love of god, use the online-distribution...
+        # MAYBE have a batched update of the online distribution ... but this is not necessary I don't think
+        # END TODO TODO TODO
+
+        # ADDITIONAL TODO TODO TODO
+        # Difference between distribution and ZonedDistribution
+        # Zoned distribution takes an existing distribution already provided to it, and builds a zone map from it
+        # Literally super simple - just get the delta low and delta high from the zone map using alpha
+        # The distribution itself has bins. ZonedDistribution will take the length of distribution as bin, and min-max as the source range
+        # Then select alpha using that range, and get the delta high and delta low
+        # Ex pheezy TODO TODO TODO
+
+        
                     
 
 
