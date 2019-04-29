@@ -1,57 +1,47 @@
-import mlep.representations.BaseRepresentation
+import mlep.tools.distributions.CosineSimilarityDistribution as CosineSimilarityDistribution
+import mlep.tools.metrics.TextMetrics as TextMetrics
+import mlep.utils.array_utils as array_utils
 
-class ZonedDistribution(mlep.representations.BaseRepresentation.BaseRepresentation):
-    def __init__(self, nBins=40, alpha=0.6, distance_metric=None):
+class ZonedDistribution:
+    def __init__(self, nBins=40, alpha = 0.6, metric_callback=None, distribution_callback=None):
+
+        if distribution_callback is None:
+            raise ValueError("Must provide a distribution callback.")
+        if metric_callback is None:
+            raise ValueError("Must provide metric_callback to calculate distance")
+        self.distribution_callback = distribution_callback
+        self.metric_callback=metric_callback
+        
+        self.nBins = nBins
         self.distribution = None
         self.alpha = alpha
-        self.nBins = nBins
 
         self.attrs={}
         self.attrs["centroid"] = None
-        self.attrs["delta_high"] = None
         self.attrs["delta_low"] = None
+        self.attrs["delta_high"] = None
+        
 
-    def buildDistribution(self,centroid, data):
+    def build(self,centroid,data):
+        """ Build the data distribution given a data set and its centroid.
+
+        Uses cosine_similary metric to build the characteristics 'map' of a text-based dataset
+
         """
-        Given centroid, data, and self.distance_metric, use self.distance metric to build a distribution using the data. 
 
-        Then obtain delta_high and delta_low of the range
-        """
-        pass
-
-    def updateDistribution(self,):
-    
-
-
-
-    # https://www.geeksforgeeks.org/subarray-whose-absolute-sum-is-closest-to-k/
-    # Improve with nlogn solution at https://www.geeksforgeeks.org/subarray-whose-sum-is-closest-to-k/
-    # TODO
-    def getSubArray(self,arr, n, K): 
-        currSum = 0
-        prevDif = 0
-        currDif = 0
-        result = [-1, -1, abs(K-abs(currSum))] 
-        resultTmp = result 
-        i = 0
-        j = 0
-        while(i<= j and j<n): 
-            currSum += arr[j] 
-            prevDif = currDif 
-            currDif = K - abs(currSum) 
-            if(currDif <= 0): 
-                if abs(currDif) < abs(prevDif): 
-                    resultTmp = [i, j, currDif] 
-                else: 
-                    resultTmp = [i, j-1, prevDif] 
-                currSum -= (arr[i]+arr[j])                 
-                i += 1
-            else: 
-                resultTmp = [i, j, currDif] 
-                j += 1                
-            if(abs(resultTmp[2]) < abs(result[2])): 
-                result = resultTmp 
-        return result 
+        self.attrs["centroid"] = centroid
+        self.distribution = [0]*data.shape[0]
+        for idx in range(data.shape[0]):
+            self.distribution[idx] = self.metric_callback(centroid,data[idx])
+        self.distribution = self.distribution_callback(self.nBins, self.distribution)
+        
+        # Now that distribution is set up, we need to obtain the Data characteristics, namely the concentration of points...
+        #self.max_peak_key = self.distribution.dist.index(max(self.distribution.dist))
+        # need from 1:-1 because the outside ones are "outliers"...
+        self.delta_low_index, self.delta_high_index, _ = array_utils.getSubArray(self.distribution.dist[1:-1], self.nBins, int(self.alpha*data.shape[0]))
+        self.attrs["delta_low"] = self.distribution.dist_keys[self.delta_low_index] - (1./self.nBins)
+        self.attrs["delta_high"] = self.distribution.dist_keys[self.delta_high_index]
+ 
     
     def get(self,_key):
         return self.attrs[_key]
