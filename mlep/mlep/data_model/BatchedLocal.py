@@ -193,7 +193,9 @@ class BatchedLocal(mlep.data_model.DataModel.DataModel):
         self.class_statistics[_class] = len(self.class_data[_class])
 
         # reset data <-- can be optimized TODO
-        self.data = [self.class_data[_class] for _class in self.classes]
+        self.data = []
+        for _class in self.classes:
+            self.data += self.class_data[_class]
 
 
     def getNextBatchData(self,):
