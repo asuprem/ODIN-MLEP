@@ -1,5 +1,5 @@
-# ODIN
-ODIN is a Machine Learning Event Processor (MLEP). It is a system to perform event detection in drifting
+# ODIN-MLEP
+ODIN-MLEP is a Machine Learning Event Processor (MLEP). It is a system to perform event detection in drifting
 data.
 
 Here we describe execution, implementation, and data exploration for MLEP.
