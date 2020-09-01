@@ -47,5 +47,5 @@ sqlparse==0.3.0
 tabulate==0.8.3
 urllib3==1.24.2
 websocket-client==0.56.0
-Werkzeug==0.15.2
+Werkzeug==0.15.3
 wikipedia==1.4.0
