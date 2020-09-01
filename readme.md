@@ -1,17 +1,14 @@
-# WIP (<span style="color:red"> Ignore this for now</span>)
+# ODIN
+ODIN is a Machine Learning Event Processor (MLEP). It is a system to perform event detection in drifting
+data.
 
-installing as a development package
+Here we describe execution, implementation, and data exploration for MLEP.
+
+You should installing as a development package
 
     cd into mlep
     pip3 install -e .
     
-
-
-# MLEP
-MLEP is a Machine Learning Event Processor. It is a system to perform event detection in drifting
-data.
-
-Here we describe execution, implementation, and data exploration for MLEP.
 
 ## Division of work
 Basically, Abhijit wrote the MLEP server (front-end interface) and drift-adaptive section on top of
